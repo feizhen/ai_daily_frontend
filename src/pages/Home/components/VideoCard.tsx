@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import styles from './VideoCard.module.less';
 import type { Video, NewsItem } from '../../../types/api';
 
@@ -31,9 +32,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
         <div className={styles.descriptionWrapper}>
           <p className={isExpanded ? '' : styles.clamp}>{description}</p>
           {description.length > 100 && ( // Heuristic to decide if button is needed
-            <button onClick={toggleExpand} className={styles.expandButton}>
+            <Button onClick={toggleExpand} variant="expand" className={styles.expandButton}>
               {isExpanded ? 'Show Less' : 'Show More'}
-            </button>
+            </Button>
           )}
         </div>
         <div className={styles.meta}>
