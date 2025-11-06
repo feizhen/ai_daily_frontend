@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import styles from './VideoCard.module.less';
 import type { Video, NewsItem } from '../../../types/api';
 
@@ -15,22 +16,25 @@ const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
   };
 
   const description = isVideo(item) ? item.description : item.summary.en;
+  const imageUrl = isVideo(item) ? item.thumbnailUrl : item.imageUrl;
 
   return (
     <div className={styles.card}>
-      <div className={styles.thumbnail}>
-        <img src={isVideo(item) ? item.thumbnailUrl : item.imageUrl} alt="thumbnail" />
-        {isVideo(item) && <div className={styles.playButton}>▶</div>}
-      </div>
+      {imageUrl && (
+        <div className={styles.thumbnail}>
+          <img src={imageUrl} alt="thumbnail" />
+          {isVideo(item) && <div className={styles.playButton}>▶</div>}
+        </div>
+      )}
       <div className={styles.info}>
         <span className={styles.tag}>{isVideo(item) ? item.category : item.category.en}</span>
         <h3>{isVideo(item) ? item.title : item.title.en}</h3>
         <div className={styles.descriptionWrapper}>
           <p className={isExpanded ? '' : styles.clamp}>{description}</p>
           {description.length > 100 && ( // Heuristic to decide if button is needed
-            <button onClick={toggleExpand} className={styles.expandButton}>
+            <Button onClick={toggleExpand} variant="expand" className={styles.expandButton}>
               {isExpanded ? 'Show Less' : 'Show More'}
-            </button>
+            </Button>
           )}
         </div>
         <div className={styles.meta}>
