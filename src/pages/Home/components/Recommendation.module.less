@@ -26,11 +26,16 @@
   }
 
   .grid {
-    column-count: 4;
-    column-gap: 20px;
+    display: flex;
+    margin-left: -20px; // gutter size offset
+    width: auto;
+  }
+
+  .gridColumn {
+    padding-left: 20px; // gutter size
+    background-clip: padding-box;
 
     > div {
-      break-inside: avoid;
       margin-bottom: 20px;
     }
   }

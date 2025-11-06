@@ -15,13 +15,16 @@ const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
   };
 
   const description = isVideo(item) ? item.description : item.summary.en;
+  const imageUrl = isVideo(item) ? item.thumbnailUrl : item.imageUrl;
 
   return (
     <div className={styles.card}>
-      <div className={styles.thumbnail}>
-        <img src={isVideo(item) ? item.thumbnailUrl : item.imageUrl} alt="thumbnail" />
-        {isVideo(item) && <div className={styles.playButton}>▶</div>}
-      </div>
+      {imageUrl && (
+        <div className={styles.thumbnail}>
+          <img src={imageUrl} alt="thumbnail" />
+          {isVideo(item) && <div className={styles.playButton}>▶</div>}
+        </div>
+      )}
       <div className={styles.info}>
         <span className={styles.tag}>{isVideo(item) ? item.category : item.category.en}</span>
         <h3>{isVideo(item) ? item.title : item.title.en}</h3>
