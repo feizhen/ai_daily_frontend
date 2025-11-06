@@ -30,7 +30,7 @@ body {
   line-height: 1.5;
 }
 
-#root {
+#app {
   min-height: 100vh;
 }
 

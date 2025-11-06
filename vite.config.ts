@@ -14,6 +14,7 @@ export default defineConfig({
         target: 'https://aidailybackend-production.up.railway.app',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api'),
+        timeout: 30000, // 30 秒超时
       },
     },
   },
@@ -27,7 +28,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'axios-vendor': ['axios'],
         },
       },
     },
