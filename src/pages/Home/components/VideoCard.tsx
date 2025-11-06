@@ -1,0 +1,48 @@
+import React, { useState } from 'react';
+import styles from './VideoCard.module.less';
+import type { Video, NewsItem } from '../../../types/api';
+
+interface VideoCardProps {
+  item: Video | NewsItem;
+}
+
+const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isVideo = (item: Video | NewsItem): item is Video => 'videoId' in item;
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const description = isVideo(item) ? item.description : item.summary.en;
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.thumbnail}>
+        <img src={isVideo(item) ? item.thumbnailUrl : item.imageUrl} alt="thumbnail" />
+        {isVideo(item) && <div className={styles.playButton}>▶</div>}
+      </div>
+      <div className={styles.info}>
+        <span className={styles.tag}>{isVideo(item) ? item.category : item.category.en}</span>
+        <h3>{isVideo(item) ? item.title : item.title.en}</h3>
+        <div className={styles.descriptionWrapper}>
+          <p className={isExpanded ? '' : styles.clamp}>{description}</p>
+          {description.length > 100 && ( // Heuristic to decide if button is needed
+            <button onClick={toggleExpand} className={styles.expandButton}>
+              {isExpanded ? 'Show Less' : 'Show More'}
+            </button>
+          )}
+        </div>
+        <div className={styles.meta}>
+          <span>{isVideo(item) ? item.author : item.sourceEmailId} - {new Date(isVideo(item) ? item.publishedAt : item.createdAt).toLocaleTimeString()}</span>
+          <div className={styles.actions}>
+            <span>favorite</span>
+            <span>...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VideoCard;
