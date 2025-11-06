@@ -4,7 +4,7 @@ const API_BASE_URL = '/api';
 const REQUEST_TIMEOUT = 30000; // 30 seconds
 
 // Fetch 包装函数，添加超时和错误处理
-async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+export async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
