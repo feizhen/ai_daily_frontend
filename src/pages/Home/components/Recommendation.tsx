@@ -13,7 +13,7 @@ const Recommendation: React.FC = () => {
   const hasFetched = useRef(false);
 
   const breakpointColumnsObj = {
-    default: 4,  // >= 1200px
+    default: 3,  // >= 1200px
     1199: 3,     // >= 992px and < 1200px
     991: 2,      // >= 768px and < 992px
     767: 1       // < 768px
