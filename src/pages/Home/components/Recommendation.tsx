@@ -3,6 +3,7 @@ import Masonry from 'react-masonry-css';
 import { Button } from '@/components/ui/button';
 import styles from './Recommendation.module.less';
 import VideoCard from './VideoCard.tsx';
+import VideoPlayerDialog from './VideoPlayerDialog';
 import { getYouTubeVideos, getTopUnpushedNews } from '../../../api/home';
 import type { Video, NewsItem } from '../../../types/api';
 
@@ -10,6 +11,8 @@ const Recommendation: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const hasFetched = useRef(false);
 
   const breakpointColumnsObj = {
@@ -46,6 +49,11 @@ const Recommendation: React.FC = () => {
 
   const items = [...videos, ...news];
 
+  const handleVideoClick = (video: Video) => {
+    setSelectedVideo(video);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className={styles.recommendation}>
       <div className={styles.header}>
@@ -65,10 +73,17 @@ const Recommendation: React.FC = () => {
           columnClassName={styles.gridColumn}
         >
           {items.map((item) => (
-            <VideoCard key={item.id} item={item} />
+            <VideoCard key={item.id} item={item} onVideoClick={handleVideoClick} />
           ))}
         </Masonry>
       )}
+
+      {/* 视频播放弹窗 */}
+      <VideoPlayerDialog
+        video={selectedVideo}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
     </div>
   );
 };

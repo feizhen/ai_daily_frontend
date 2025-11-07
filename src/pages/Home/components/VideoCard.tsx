@@ -4,16 +4,26 @@ import type { Video, NewsItem } from '../../../types/api';
 
 interface VideoCardProps {
   item: Video | NewsItem;
+  onVideoClick?: (video: Video) => void;
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
+const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
   const isVideo = (item: Video | NewsItem): item is Video => 'videoId' in item;
 
+  const handleCardClick = () => {
+    if (isVideo(item) && onVideoClick) {
+      onVideoClick(item);
+    }
+  };
   const description = isVideo(item) ? item.description : item.summary.en;
   const imageUrl = isVideo(item) ? item.thumbnailUrl : item.imageUrl;
 
   return (
-    <div className={styles.card}>
+    <div
+      className={styles.card}
+      onClick={handleCardClick}
+      style={{ cursor: isVideo(item) ? 'pointer' : 'default' }}
+    >
       {imageUrl && (
         <div className={styles.thumbnail}>
           <img src={imageUrl} alt="thumbnail" />
