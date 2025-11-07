@@ -1,17 +1,5 @@
-import { fetchWithTimeout } from './home';
-import { getAccessToken } from '../contexts/AuthContext';
+import { apiClient } from '../utils/apiClient';
 import type { Video, NewsItem } from '../types/api';
-
-const API_BASE = '/api';
-
-// Helper to add auth header
-function getAuthHeaders(): HeadersInit {
-  const token = getAccessToken();
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
 
 // ============= VIDEO APIs =============
 
@@ -51,29 +39,15 @@ export async function getVideos(filters?: VideoFilters): Promise<Video[]> {
     });
   }
 
-  const url = `${API_BASE}/youtube/videos${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await fetchWithTimeout(url);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch videos');
-  }
-
-  return response.json();
+  const endpoint = `/youtube/videos${params.toString() ? `?${params.toString()}` : ''}`;
+  return apiClient.get<Video[]>(endpoint);
 }
 
 /**
  * Delete a video by ID
  */
 export async function deleteVideo(id: string): Promise<void> {
-  const response = await fetchWithTimeout(`${API_BASE}/youtube/videos/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to delete video');
-  }
+  await apiClient.delete(`/youtube/videos/${id}`, { requiresAuth: true });
 }
 
 /**
@@ -88,18 +62,11 @@ export async function syncVideos(options?: {
   newVideos: number;
   channels: number;
 }> {
-  const response = await fetchWithTimeout(`${API_BASE}/youtube/videos/sync`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(options || {}),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to sync videos');
-  }
-
-  const result = await response.json();
+  const result = await apiClient.post<{ data?: any }>(
+    '/youtube/videos/sync',
+    options || {},
+    { requiresAuth: true }
+  );
   return result.data || result;
 }
 
@@ -139,14 +106,8 @@ export async function getNews(filters?: NewsFilters): Promise<NewsListResponse> 
     });
   }
 
-  const url = `${API_BASE}/news${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await fetchWithTimeout(url);
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch news');
-  }
-
-  const result = await response.json();
+  const endpoint = `/news${params.toString() ? `?${params.toString()}` : ''}`;
+  const result = await apiClient.get<{ data?: NewsListResponse }>(endpoint);
   return result.data || result;
 }
 
@@ -154,18 +115,11 @@ export async function getNews(filters?: NewsFilters): Promise<NewsListResponse> 
  * Update a news item
  */
 export async function updateNews(id: string, data: Partial<NewsItem>): Promise<NewsItem> {
-  const response = await fetchWithTimeout(`${API_BASE}/news/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update news');
-  }
-
-  const result = await response.json();
+  const result = await apiClient.patch<{ data?: NewsItem }>(
+    `/news/${id}`,
+    data,
+    { requiresAuth: true }
+  );
   return result.data || result;
 }
 
@@ -173,15 +127,7 @@ export async function updateNews(id: string, data: Partial<NewsItem>): Promise<N
  * Delete a news item
  */
 export async function deleteNews(id: string): Promise<void> {
-  const response = await fetchWithTimeout(`${API_BASE}/news/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to delete news');
-  }
+  await apiClient.delete(`/news/${id}`, { requiresAuth: true });
 }
 
 /**
@@ -192,18 +138,11 @@ export async function syncAllNews(maxResults?: number): Promise<{
   newItems: number;
   duplicates: number;
 }> {
-  const response = await fetchWithTimeout(`${API_BASE}/news/sync/all`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ maxResults: maxResults || 3 }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to sync news');
-  }
-
-  const result = await response.json();
+  const result = await apiClient.post<{ data: any }>(
+    '/news/sync/all',
+    { maxResults: maxResults || 3 },
+    { requiresAuth: true }
+  );
   return result.data.total || result.data;
 }
 
@@ -213,17 +152,10 @@ export async function syncAllNews(maxResults?: number): Promise<{
 export async function translatePendingNews(limit?: number): Promise<{
   translatedCount: number;
 }> {
-  const response = await fetchWithTimeout(`${API_BASE}/news/translate/pending`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ limit: limit || 50 }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to translate news');
-  }
-
-  const result = await response.json();
+  const result = await apiClient.post<{ data?: any }>(
+    '/news/translate/pending',
+    { limit: limit || 50 },
+    { requiresAuth: true }
+  );
   return result.data || result;
 }

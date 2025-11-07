@@ -1,6 +1,4 @@
-import { fetchWithTimeout } from './home';
-
-const API_BASE = '/api';
+import { apiClient } from '../utils/apiClient';
 
 export interface LoginCredentials {
   email: string;
@@ -46,60 +44,21 @@ export interface RefreshResponse {
  * Login user with email and password
  */
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
-  const response = await fetchWithTimeout(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || '登录失败');
-  }
-
-  return response.json();
+  return apiClient.post<AuthResponse>('/auth/login', credentials);
 }
 
 /**
  * Register new user
  */
 export async function register(data: RegisterData): Promise<AuthResponse> {
-  const response = await fetchWithTimeout(`${API_BASE}/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || '注册失败');
-  }
-
-  return response.json();
+  return apiClient.post<AuthResponse>('/auth/register', data);
 }
 
 /**
  * Refresh access token using refresh token
  */
 export async function refreshToken(refreshToken: string): Promise<RefreshResponse> {
-  const response = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || '令牌刷新失败');
-  }
-
-  return response.json();
+  return apiClient.post<RefreshResponse>('/auth/refresh', { refreshToken });
 }
 
 /**
@@ -107,14 +66,7 @@ export async function refreshToken(refreshToken: string): Promise<RefreshRespons
  */
 export async function logout(accessToken: string, refreshToken: string): Promise<void> {
   try {
-    await fetchWithTimeout(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+    await apiClient.post('/auth/logout', { refreshToken }, { requiresAuth: true });
   } catch (error) {
     // Ignore logout errors, clear local storage anyway
     console.error('Logout error:', error);
@@ -125,17 +77,9 @@ export async function logout(accessToken: string, refreshToken: string): Promise
  * Get current user profile
  */
 export async function getUserProfile(accessToken: string): Promise<User> {
-  const response = await fetchWithTimeout(`${API_BASE}/auth/profile`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || '获取用户信息失败');
-  }
-
-  const result = await response.json();
+  const result = await apiClient.get<{ success: boolean; data: User }>(
+    '/auth/profile',
+    { requiresAuth: true }
+  );
   return result.data;
 }

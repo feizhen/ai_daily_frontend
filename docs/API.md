@@ -1,79 +1,93 @@
-# AI Daily Backend API Documentation
+# AI Daily Backend API 文档
 
-**Version**: 2.0.0
-**Base URL**: `http://localhost:3000/api`
-**Production URL**: `https://aidailybackend-production.up.railway.app/api`
-
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Authentication](#authentication)
-- [Response Format](#response-format)
-- [News Endpoints](#news-endpoints)
-- [Translation Endpoints](#translation-endpoints)
-- [Gmail Endpoints](#gmail-endpoints)
-- [YouTube Endpoints](#youtube-endpoints)
-  - [Channel Management](#channel-management)
-  - [Video Management](#video-management)
-  - [User Preferences](#user-preferences)
-- [Data Models](#data-models)
-- [Error Codes](#error-codes)
+**版本**: 3.0.0
+**本地地址**: `http://localhost:3000/api`
+**生产环境**: `https://aidailybackend-production.up.railway.app/api`
 
 ---
 
-## Overview
+## 📋 目录
 
-AI Daily Backend provides RESTful APIs for:
-- 📰 News aggregation from multiple email sources
-- 🌐 Batch translation with intelligent retry mechanisms
-- 📊 AI-powered ranking and sorting
-- 📧 Gmail integration for email processing
-- 📺 YouTube video aggregation from AI-related channels
-- 🎯 Personalized video recommendations based on user preferences
-- ⚡ Redis-based caching for improved performance
+- [概述](#概述)
+- [身份认证](#身份认证)
+- [响应格式](#响应格式)
+- [新闻接口](#新闻接口)
+- [翻译接口](#翻译接口)
+- [Gmail 接口](#gmail-接口)
+- [YouTube 接口](#youtube-接口)
+  - [频道管理](#频道管理)
+  - [视频管理](#视频管理)
+  - [用户偏好](#用户偏好)
+- [数据模型](#数据模型)
+- [错误码](#错误码)
 
-### 🚀 Caching Strategy
+---
 
-The API implements **Redis caching** for frequently accessed endpoints to improve response times and reduce database load:
+## 概述
 
-- **Cached Endpoints**:
-  - `GET /api/youtube/videos` - Default video list (Homepage)
-  - `GET /api/news/top-unpushed` - Top unpushed news (Homepage)
+AI Daily Backend 提供以下 RESTful API 服务：
 
-- **Cache Configuration**:
-  - **TTL (Time To Live)**: 1 hour (3600 seconds)
-  - **Invalidation**: Automatic expiration based on TTL
-  - **Fallback**: Gracefully degrades to database queries if Redis is unavailable
+- 📰 从多个邮件源聚合新闻
+- 🌐 智能重试机制的批量翻译
+- 📊 AI 驱动的排名和排序
+- 📧 Gmail 集成用于邮件处理
+- 📺 AI 相关频道的 YouTube 视频聚合
+- 🎯 基于用户偏好的个性化视频推荐
+- ⚡ 基于 Redis 的缓存提升性能
+- 🔐 JWT 双令牌认证系统
+- 👥 用户角色权限管理（admin/visitor）
 
-- **Performance Gains**:
-  - Response time: ~500ms → ~50ms (90% improvement)
-  - Database load reduction: 90%+
-  - Supports higher concurrent requests
+### 🚀 缓存策略
 
-- **Cache Keys**:
+API 实现了 **Redis 缓存**以提升响应速度和减少数据库负载：
+
+- **缓存接口**：
+
+  - `GET /api/youtube/videos` - 默认视频列表（首页）
+  - `GET /api/news/top-unpushed` - 顶部未推送新闻（首页）
+
+- **缓存配置**：
+
+  - **TTL (生存时间)**：1 小时 (3600 秒)
+  - **失效策略**：基于 TTL 自动过期
+  - **降级方案**：Redis 不可用时优雅降级到数据库查询
+
+- **性能提升**：
+
+  - 响应时间：~500ms → ~50ms (提升 90%)
+  - 数据库负载减少：90%+
+  - 支持更高并发请求
+
+- **缓存键**：
   - YouTube: `youtube:default-videos:{params}`
   - News: `news:top-unpushed:{params}`
 
 ---
 
-## Authentication
+## 身份认证
 
-### Overview
+### 概述
 
-The API now supports **JWT (JSON Web Token)** based authentication with dual-token mechanism (Access Token + Refresh Token). Most endpoints are protected and require authentication, while some read-only endpoints remain public.
+API 支持基于 **JWT (JSON Web Token)** 的双令牌认证机制（访问令牌 + 刷新令牌）。大部分接口需要认证，部分只读接口保持公开访问。
 
-### Authentication Flow
+### 用户角色
 
-1. **Register** or **Login** to obtain tokens
-2. **Include Access Token** in request headers for protected endpoints
-3. **Refresh Token** when Access Token expires
-4. **Logout** to revoke Refresh Token
+系统支持两种用户角色：
 
-### Obtaining Tokens
+- **admin**：管理员角色，拥有完整权限
+- **visitor**：访客角色，新注册用户的默认角色
 
-**Register a new user:**
+### 认证流程
+
+1. **注册**或**登录**获取令牌
+2. 在受保护接口的请求头中**包含访问令牌**
+3. 访问令牌过期时使用**刷新令牌**更新
+4. **登出**撤销刷新令牌
+
+### 获取令牌
+
+**注册新用户：**
+
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -85,7 +99,8 @@ Content-Type: application/json
 }
 ```
 
-**Login with existing credentials:**
+**使用现有凭据登录：**
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -96,7 +111,8 @@ Content-Type: application/json
 }
 ```
 
-**Response:**
+**响应示例：**
+
 ```json
 {
   "success": true,
@@ -108,6 +124,7 @@ Content-Type: application/json
       "nickname": "John Doe",
       "avatar": null,
       "status": "active",
+      "role": "visitor",
       "emailVerified": false,
       "createdAt": "2025-01-06T10:30:00Z"
     },
@@ -117,18 +134,30 @@ Content-Type: application/json
 }
 ```
 
-### Using Access Token
+**JWT Token Payload 包含：**
 
-Include the Access Token in the `Authorization` header for protected endpoints:
+```json
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "role": "visitor",
+  "iat": 1234567890,
+  "exp": 1234571490
+}
+```
+
+### 使用访问令牌
+
+在受保护接口的 `Authorization` 请求头中包含访问令牌：
 
 ```http
 GET /api/news/:id/push
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Refreshing Tokens
+### 刷新令牌
 
-When the Access Token expires (default: 1 hour), use the Refresh Token to obtain new tokens:
+当访问令牌过期（默认：1 小时）时，使用刷新令牌获取新令牌：
 
 ```http
 POST /api/auth/refresh
@@ -140,6 +169,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -174,13 +204,14 @@ Content-Type: application/json
 
 - Minimum length: 8 characters
 - Must contain: uppercase letter, lowercase letter, and number
-- Optional: special characters (@$!%*?&)
+- Optional: special characters (@$!%\*?&)
 
 ### Public Endpoints (No Authentication Required)
 
 The following endpoints are publicly accessible:
 
 **News Endpoints:**
+
 - `GET /news` - List news items
 - `GET /news/:id` - Get news item details
 - `GET /news/top-unpushed` - Get top unpushed news
@@ -192,33 +223,39 @@ The following endpoints are publicly accessible:
 - `POST /news/fix-images` - Fix missing images (admin)
 
 **YouTube Endpoints:**
+
 - `GET /api/youtube/channels` - List channels
 - `GET /api/youtube/videos` - List videos
 - Other read-only YouTube endpoints
 
 **Gmail & Admin Endpoints:**
+
 - All Gmail OAuth endpoints
 - System management endpoints
 
 ### Protected Endpoints (Authentication Required)
 
 **User Management:**
+
 - `GET /api/auth/profile` - Get current user profile
 - `PATCH /api/users/profile` - Update user profile
 - `PATCH /api/users/password` - Change password
 
 **News Operations:**
+
 - `POST /news/:id/push` - Mark news as pushed
 - `POST /news/:id/read` - Mark news as read
 - `POST /news/:id/like` - Mark news as liked
 
 **YouTube User Preferences:**
+
 - `GET /api/youtube/preferences` - Get user preferences
 - `PUT /api/youtube/preferences` - Update user preferences
 
 ### Error Responses
 
 **401 Unauthorized:**
+
 ```json
 {
   "statusCode": 401,
@@ -228,6 +265,7 @@ The following endpoints are publicly accessible:
 ```
 
 **403 Forbidden:**
+
 ```json
 {
   "statusCode": 403,
@@ -243,15 +281,19 @@ The following endpoints are publicly accessible:
 All API responses follow this standard format:
 
 ### Success Response
+
 ```json
 {
   "success": true,
-  "data": { /* response data */ },
+  "data": {
+    /* response data */
+  },
   "message": "Optional success message"
 }
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -282,11 +324,13 @@ Retrieve paginated list of news items with optional filters.
 | `order` | string | ASC | Sort order (ASC or DESC) |
 
 **Example Request**:
+
 ```bash
 GET /news?page=1&limit=10&isPushed=false&sortBy=rank&order=ASC
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -340,16 +384,20 @@ Get the highest-ranked unpushed news items.
 | `limit` | number | 5 | Maximum items to return |
 
 **Example Request**:
+
 ```bash
 GET /news/top-unpushed?limit=5
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
   "data": {
-    "items": [/* array of news items */],
+    "items": [
+      /* array of news items */
+    ],
     "total": 5
   }
 }
@@ -369,18 +417,20 @@ Retrieve a single news item by its UUID.
 | `id` | string | News item UUID |
 
 **Example Request**:
+
 ```bash
 GET /news/7ae61a78-07da-4720-8fe5-69b701ef8bec
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
   "data": {
     "id": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
     "category": { "en": "ROBOTICS", "zh": "机器人" },
-    "title": { "en": "...", "zh": "..." },
+    "title": { "en": "...", "zh": "..." }
     /* ... full news item ... */
   }
 }
@@ -390,7 +440,7 @@ GET /news/7ae61a78-07da-4720-8fe5-69b701ef8bec
 
 ### 4. Mark as Pushed
 
-Mark a news item as pushed.
+Mark a news item as pushed for a specific user (creates user-level push history).
 
 **Endpoint**: `POST /news/:id/push`
 
@@ -399,17 +449,25 @@ Mark a news item as pushed.
 |-----------|------|-------------|
 | `id` | string | News item UUID |
 
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID for push history |
+
 **Example Request**:
+
 ```bash
-POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/push
+POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/push?userId=default
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
-  "data": {/* updated news item */},
-  "message": "已标记为推送"
+  "message": "News push history created",
+  "userId": "default",
+  "newsItemId": "7ae61a78-07da-4720-8fe5-69b701ef8bec"
 }
 ```
 
@@ -427,15 +485,19 @@ Mark a news item as read.
 | `id` | string | News item UUID |
 
 **Example Request**:
+
 ```bash
 POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/read
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
-  "data": {/* updated news item */},
+  "data": {
+    /* updated news item */
+  },
   "message": "已标记为已读"
 }
 ```
@@ -454,6 +516,7 @@ Toggle or set the like status of a news item.
 | `id` | string | News item UUID |
 
 **Request Body** (optional):
+
 ```json
 {
   "liked": true
@@ -461,6 +524,7 @@ Toggle or set the like status of a news item.
 ```
 
 **Example Request**:
+
 ```bash
 POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/like
 Content-Type: application/json
@@ -471,23 +535,136 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
-  "data": {/* updated news item */},
+  "data": {
+    /* updated news item */
+  },
   "message": "已添加到喜欢"
 }
 ```
 
 ---
 
-### 7. Sync News from The Rundown AI
+### 7. Get News User Preferences
+
+Get user-specific news preferences (categories and daily count).
+
+**Endpoint**: `GET /news/preferences`
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID |
+
+**Example Request**:
+
+```bash
+GET /news/preferences?userId=default
+```
+
+**Example Response**:
+
+```json
+{
+  "id": "uuid",
+  "userId": "default",
+  "preferredCategories": ["AI", "Tech"],
+  "dailyNewsCount": 5,
+  "createdAt": "2025-11-06T00:00:00.000Z",
+  "updatedAt": "2025-11-06T00:00:00.000Z"
+}
+```
+
+---
+
+### 8. Update News User Preferences
+
+Update user-specific news preferences.
+
+**Endpoint**: `POST /news/preferences`
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID |
+
+**Request Body**:
+
+```json
+{
+  "preferredCategories": ["AI", "Tech", "Business"],
+  "dailyNewsCount": 10
+}
+```
+
+**Example Request**:
+
+```bash
+POST /news/preferences?userId=default
+Content-Type: application/json
+
+{
+  "preferredCategories": ["AI", "Tech"],
+  "dailyNewsCount": 10
+}
+```
+
+**Example Response**:
+
+```json
+{
+  "id": "uuid",
+  "userId": "default",
+  "preferredCategories": ["AI", "Tech"],
+  "dailyNewsCount": 10,
+  "createdAt": "2025-11-06T00:00:00.000Z",
+  "updatedAt": "2025-11-06T00:00:00.000Z"
+}
+```
+
+---
+
+### 9. Get Push History Statistics
+
+Get user's news push history statistics.
+
+**Endpoint**: `GET /news/push-history/stats`
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID |
+
+**Example Request**:
+
+```bash
+GET /news/push-history/stats?userId=default
+```
+
+**Example Response**:
+
+```json
+{
+  "userId": "default",
+  "totalPushed": 150,
+  "last7Days": 35,
+  "last30Days": 120
+}
+```
+
+---
+
+### 10. Sync News from The Rundown AI
 
 Manually trigger email synchronization from The Rundown AI.
 
 **Endpoint**: `POST /news/sync`
 
 **Request Body** (optional):
+
 ```json
 {
   "maxResults": 5
@@ -495,6 +672,7 @@ Manually trigger email synchronization from The Rundown AI.
 ```
 
 **Example Request**:
+
 ```bash
 POST /news/sync
 Content-Type: application/json
@@ -505,6 +683,7 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -526,6 +705,7 @@ Manually trigger email synchronization from AI Valley.
 **Endpoint**: `POST /news/sync/aivalley`
 
 **Request Body** (optional):
+
 ```json
 {
   "maxResults": 3
@@ -533,6 +713,7 @@ Manually trigger email synchronization from AI Valley.
 ```
 
 **Example Request**:
+
 ```bash
 POST /news/sync/aivalley
 Content-Type: application/json
@@ -543,6 +724,7 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -564,6 +746,7 @@ Sync news from all configured email sources.
 **Endpoint**: `POST /news/sync/all`
 
 **Request Body** (optional):
+
 ```json
 {
   "maxResults": 3
@@ -571,6 +754,7 @@ Sync news from all configured email sources.
 ```
 
 **Example Request**:
+
 ```bash
 POST /news/sync/all
 Content-Type: application/json
@@ -581,6 +765,7 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -614,11 +799,13 @@ Manually trigger ranking recalculation for all unpushed news.
 **Endpoint**: `POST /news/recalculate-rank`
 
 **Example Request**:
+
 ```bash
 POST /news/recalculate-rank
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -627,8 +814,8 @@ POST /news/recalculate-rank
     "stats": {
       "totalUnpushed": 100,
       "avgScore": 5.32,
-      "topScore": 9.50,
-      "bottomScore": 2.10
+      "topScore": 9.5,
+      "bottomScore": 2.1
     }
   },
   "message": "已重新计算 100 条新闻的排名"
@@ -644,19 +831,21 @@ Get statistics about current news rankings.
 **Endpoint**: `GET /news/rank-stats`
 
 **Example Request**:
+
 ```bash
 GET /news/rank-stats
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
   "data": {
     "totalUnpushed": 100,
     "avgScore": 5.32,
-    "topScore": 9.50,
-    "bottomScore": 2.10
+    "topScore": 9.5,
+    "bottomScore": 2.1
   }
 }
 ```
@@ -672,6 +861,7 @@ Translate all news items with `translation_status = 'pending'`.
 **Endpoint**: `POST /news/translate/pending`
 
 **Request Body** (optional):
+
 ```json
 {
   "limit": 50
@@ -679,6 +869,7 @@ Translate all news items with `translation_status = 'pending'`.
 ```
 
 **Example Request**:
+
 ```bash
 POST /news/translate/pending
 Content-Type: application/json
@@ -689,6 +880,7 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -700,6 +892,7 @@ Content-Type: application/json
 ```
 
 **Translation Process**:
+
 1. Queries news items with `translation_status = 'pending'`
 2. Updates status to `'translating'`
 3. Attempts batch translation with retry mechanism
@@ -721,11 +914,13 @@ Retry translation for a single news item (useful for failed translations).
 | `id` | string | News item UUID |
 
 **Example Request**:
+
 ```bash
 POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/retranslate
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -747,11 +942,13 @@ Get OAuth2 authorization URL for Gmail access.
 **Endpoint**: `GET /gmail/auth-url`
 
 **Example Request**:
+
 ```bash
 GET /gmail/auth-url
 ```
 
 **Example Response**:
+
 ```json
 {
   "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
@@ -767,6 +964,7 @@ Exchange authorization code for access token.
 **Endpoint**: `POST /gmail/authorize`
 
 **Request Body**:
+
 ```json
 {
   "code": "authorization_code_from_google"
@@ -774,6 +972,7 @@ Exchange authorization code for access token.
 ```
 
 **Example Request**:
+
 ```bash
 POST /gmail/authorize
 Content-Type: application/json
@@ -784,6 +983,7 @@ Content-Type: application/json
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -806,6 +1006,7 @@ Retrieve messages from Gmail inbox.
 | `query` | string | - | Gmail search query |
 
 **Example Request**:
+
 ```bash
 GET /gmail/messages?maxResults=10&query=from:news@daily.therundown.ai
 ```
@@ -825,6 +1026,7 @@ Get the latest messages from a specific sender.
 | `maxResults` | number | 5 | Maximum messages to retrieve |
 
 **Example Request**:
+
 ```bash
 GET /gmail/latest-from?sender=news@daily.therundown.ai&maxResults=5
 ```
@@ -842,6 +1044,7 @@ Add a new YouTube channel to track.
 **Endpoint**: `POST /youtube/channels`
 
 **Request Body**:
+
 ```json
 {
   "channelId": "UCbfYPyITQ-7l4upoX8nvctg",
@@ -851,6 +1054,7 @@ Add a new YouTube channel to track.
 ```
 
 **Example Response**:
+
 ```json
 {
   "id": "uuid",
@@ -874,6 +1078,7 @@ Add multiple YouTube channels at once.
 **Endpoint**: `POST /youtube/channels/batch`
 
 **Request Body**:
+
 ```json
 {
   "channels": [
@@ -892,10 +1097,15 @@ Add multiple YouTube channels at once.
 ```
 
 **Example Response**:
+
 ```json
 [
-  {/* channel 1 details */},
-  {/* channel 2 details */}
+  {
+    /* channel 1 details */
+  },
+  {
+    /* channel 2 details */
+  }
 ]
 ```
 
@@ -913,11 +1123,13 @@ Retrieve all YouTube channels, optionally filtered by category.
 | `category` | string | Filter by category (tech/product/market) |
 
 **Example Request**:
+
 ```bash
 GET /youtube/channels?category=tech
 ```
 
 **Example Response**:
+
 ```json
 [
   {
@@ -941,6 +1153,7 @@ Get statistics about all channels.
 **Endpoint**: `GET /youtube/channels/stats/all`
 
 **Example Response**:
+
 ```json
 {
   "totalChannels": 19,
@@ -963,6 +1176,7 @@ View the hardcoded default channel list without importing.
 **Endpoint**: `GET /youtube/channels/default-list`
 
 **Example Response**:
+
 ```json
 {
   "total": 19,
@@ -992,6 +1206,7 @@ Import default channels (skips if channels already exist).
 **Endpoint**: `POST /youtube/channels/init`
 
 **Example Response**:
+
 ```json
 {
   "success": true,
@@ -1013,17 +1228,21 @@ Force reimport of default channels.
 | `force` | boolean | Force reimport even if channels exist |
 
 **Example Request**:
+
 ```bash
 POST /youtube/channels/reimport?force=true
 ```
 
 **Example Response**:
+
 ```json
 {
   "success": true,
   "imported": 19,
   "failed": 0,
-  "channels": [/* array of imported channels */]
+  "channels": [
+    /* array of imported channels */
+  ]
 }
 ```
 
@@ -1049,6 +1268,7 @@ Update channel details.
 **Endpoint**: `PATCH /youtube/channels/:id`
 
 **Request Body**:
+
 ```json
 {
   "category": "market",
@@ -1073,6 +1293,7 @@ Enable or disable a channel.
 **Endpoint**: `PATCH /youtube/channels/:id/toggle`
 
 **Example Response**:
+
 ```json
 {
   "id": "uuid",
@@ -1100,6 +1321,7 @@ Manually trigger video synchronization from all active channels.
 **Endpoint**: `POST /youtube/videos/sync`
 
 **Request Body** (optional):
+
 ```json
 {
   "hoursAgo": 24,
@@ -1109,12 +1331,15 @@ Manually trigger video synchronization from all active channels.
 ```
 
 **Example Response**:
+
 ```json
 {
   "totalVideos": 12,
   "newVideos": 7,
   "channels": 19,
-  "videos": [/* array of fetched videos */]
+  "videos": [
+    /* array of fetched videos */
+  ]
 }
 ```
 
@@ -1142,11 +1367,13 @@ Retrieve paginated list of videos with filters.
 | `order` | string | DESC | Sort order |
 
 **Example Request**:
+
 ```bash
 GET /youtube/videos?category=tech&limit=10&sortBy=viewCount&order=DESC
 ```
 
 **Example Response**:
+
 ```json
 [
   {
@@ -1164,7 +1391,9 @@ GET /youtube/videos?category=tech&limit=10&sortBy=viewCount&order=DESC
     "category": "market",
     "isPushed": false,
     "isWatched": false,
-    "channel": {/* channel details */}
+    "channel": {
+      /* channel details */
+    }
   }
 ]
 ```
@@ -1185,6 +1414,7 @@ Search videos by keywords in title, description, or tags.
 | `category` | string | No | Filter by category |
 
 **Example Request**:
+
 ```bash
 GET /youtube/videos/search?query=transformer&limit=10
 ```
@@ -1211,11 +1441,14 @@ Get personalized daily video recommendations based on user preferences.
 | `userId` | string | default | User ID for preferences |
 
 **Example Response**:
+
 ```json
 {
   "date": "2025-11-04",
   "totalVideos": 10,
-  "videos": [/* array of recommended videos */]
+  "videos": [
+    /* array of recommended videos */
+  ]
 }
 ```
 
@@ -1241,6 +1474,7 @@ Mark a video as watched.
 **Endpoint**: `PATCH /youtube/videos/:id/watched`
 
 **Request Body**:
+
 ```json
 {
   "watched": true
@@ -1256,6 +1490,7 @@ Mark multiple videos as watched at once.
 **Endpoint**: `POST /youtube/videos/watched/batch`
 
 **Request Body**:
+
 ```json
 {
   "videoIds": ["uuid1", "uuid2", "uuid3"]
@@ -1300,6 +1535,7 @@ Get statistics about all videos.
 **Endpoint**: `GET /youtube/videos/stats/all`
 
 **Example Response**:
+
 ```json
 {
   "totalVideos": 12,
@@ -1330,6 +1566,7 @@ Get user's video preferences.
 | `userId` | string | default | User ID |
 
 **Example Response**:
+
 ```json
 {
   "userId": "default",
@@ -1351,6 +1588,7 @@ Update user's video preferences.
 **Endpoint**: `PUT /youtube/preferences`
 
 **Request Body**:
+
 ```json
 {
   "userId": "default",
@@ -1365,7 +1603,72 @@ Update user's video preferences.
 
 ---
 
-#### 44. Calculate Popularity Scores
+#### 44. Mark Video as Pushed
+
+Mark a video as pushed for a specific user (creates user-level push history).
+
+**Endpoint**: `POST /youtube/videos/:id/push`
+
+**Path Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | string | Video UUID |
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID for push history |
+
+**Example Request**:
+
+```bash
+POST /youtube/videos/7ae61a78-07da-4720-8fe5-69b701ef8bec/push?userId=default
+```
+
+**Example Response**:
+
+```json
+{
+  "success": true,
+  "message": "Video push history created",
+  "userId": "default",
+  "videoId": "7ae61a78-07da-4720-8fe5-69b701ef8bec"
+}
+```
+
+---
+
+#### 45. Get Video Push History Statistics
+
+Get user's video push history statistics.
+
+**Endpoint**: `GET /youtube/push-history/stats`
+
+**Query Parameters**:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `userId` | string | default | User ID |
+
+**Example Request**:
+
+```bash
+GET /youtube/push-history/stats?userId=default
+```
+
+**Example Response**:
+
+```json
+{
+  "userId": "default",
+  "totalPushed": 300,
+  "last7Days": 70,
+  "last30Days": 250
+}
+```
+
+---
+
+#### 46. Calculate Popularity Scores
 
 Manually trigger popularity score calculation for all videos.
 
@@ -1373,13 +1676,14 @@ Manually trigger popularity score calculation for all videos.
 
 ---
 
-#### 45. Health Check
+#### 47. Health Check
 
 Check YouTube service health and API quota status.
 
 **Endpoint**: `GET /youtube/health`
 
 **Example Response**:
+
 ```json
 {
   "status": "healthy",
@@ -1439,12 +1743,12 @@ Check YouTube service health and API quota status.
 
 ### Translation Status Values
 
-| Status | Description |
-|--------|-------------|
-| `pending` | Waiting for translation |
-| `translating` | Translation in progress |
-| `completed` | Translation successful |
-| `failed` | Translation failed (can retry) |
+| Status        | Description                    |
+| ------------- | ------------------------------ |
+| `pending`     | Waiting for translation        |
+| `translating` | Translation in progress        |
+| `completed`   | Translation successful         |
+| `failed`      | Translation failed (can retry) |
 
 ---
 
@@ -1519,16 +1823,62 @@ Check YouTube service health and API quota status.
 
 ---
 
+### NewsUserPreference
+
+```typescript
+{
+  id: string;                          // UUID (primary key)
+  userId: string;                      // User ID ('default' or user UUID)
+  preferredCategories: string[];       // Preferred news categories
+  dailyNewsCount: number;              // News items per day (1-50)
+  createdAt: Date;                     // Creation timestamp
+  updatedAt: Date;                     // Update timestamp
+}
+```
+
+---
+
+### UserNewsPushHistory
+
+```typescript
+{
+  id: string; // UUID (primary key)
+  userId: string; // User ID
+  newsItemId: string; // News item UUID (foreign key)
+  pushedAt: Date; // Push timestamp
+}
+```
+
+**Note**: Unique constraint on `(userId, newsItemId)` prevents duplicate pushes.
+
+---
+
+### UserVideoPushHistory
+
+```typescript
+{
+  id: string; // UUID (primary key)
+  userId: string; // User ID
+  videoId: string; // Video UUID (foreign key)
+  pushedAt: Date; // Push timestamp
+}
+```
+
+**Note**: Unique constraint on `(userId, videoId)` prevents duplicate pushes.
+
+---
+
 ## Error Codes
 
-| HTTP Status | Description |
-|-------------|-------------|
-| 200 | Success |
-| 400 | Bad Request - Invalid parameters |
-| 404 | Not Found - Resource doesn't exist |
-| 500 | Internal Server Error |
+| HTTP Status | Description                        |
+| ----------- | ---------------------------------- |
+| 200         | Success                            |
+| 400         | Bad Request - Invalid parameters   |
+| 404         | Not Found - Resource doesn't exist |
+| 500         | Internal Server Error              |
 
 **Common Error Messages**:
+
 - `"消息不存在"` - News item not found
 - `"同步失败"` - Sync operation failed
 - `"翻译失败"` - Translation failed
@@ -1551,6 +1901,7 @@ The translation service uses a multi-tier fallback system:
 3. **Fallback 2**: Google Cloud Translate
 
 **Retry Strategy**:
+
 - Batch translation: 3 attempts with exponential backoff (2s, 4s, 6s)
 - Individual translation: 3 attempts with linear backoff (1s, 2s, 3s)
 - Automatic fallback from batch to individual if batch fails
@@ -1566,6 +1917,7 @@ final_score = importance_score × e^(-age_days / 3)
 ```
 
 Where:
+
 - `importance_score`: 1-10 (AI-generated or default 5.0)
 - `age_days`: Days since `source_email_date`
 - Half-life: 3 days
@@ -1578,24 +1930,25 @@ Lower `rank` values indicate higher priority (rank 1 is highest).
 
 ### News Tasks
 
-| Task | Schedule | Description |
-|------|----------|-------------|
-| Daily Sync | 8:00 AM (Asia/Shanghai) | Sync all sources, rank, translate |
-| Hourly Rank Update | Every hour | Recalculate rankings for time decay |
+| Task               | Schedule                | Description                         |
+| ------------------ | ----------------------- | ----------------------------------- |
+| Daily Sync         | 8:00 AM (Asia/Shanghai) | Sync all sources, rank, translate   |
+| Hourly Rank Update | Every hour              | Recalculate rankings for time decay |
 
 ### YouTube Tasks
 
-| Task | Schedule | Description |
-|------|----------|-------------|
-| Daily Video Sync | 7:00 AM (Asia/Shanghai) | Fetch latest videos (24 hours) from all active channels |
-| Popularity Update | Every 6 hours | Recalculate popularity scores for all videos |
-| Weekly Cleanup | Sunday 2:00 AM | Delete videos older than retention period (default: 30 days) |
+| Task              | Schedule                | Description                                                  |
+| ----------------- | ----------------------- | ------------------------------------------------------------ |
+| Daily Video Sync  | 7:00 AM (Asia/Shanghai) | Fetch latest videos (24 hours) from all active channels      |
+| Popularity Update | Every 6 hours           | Recalculate popularity scores for all videos                 |
+| Weekly Cleanup    | Sunday 2:00 AM          | Delete videos older than retention period (default: 30 days) |
 
 ---
 
 ## Support
 
 For issues or questions:
+
 - GitHub: [Repository URL]
 - Documentation: See `NEWS_PROCESSING_FLOW.md` for detailed flow
 - Migration Guide: See `MIGRATION.md` for database migrations
