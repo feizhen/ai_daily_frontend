@@ -7,11 +7,12 @@ const Header: React.FC = () => {
     <div className={styles.header}>
       <div className={styles.greeting}>
         <h1>Hello 👋</h1>
-        <p>Let's continue. Today's progress <span>40%</span></p>
+        <p>Welcome to today's AI Daily</p>
       </div>
-      <div className={styles.userMenu}>
+      {/* 用户头像暂时屏蔽 */}
+      {/* <div className={styles.userMenu}>
         <UserMenu />
-      </div>
+      </div> */}
     </div>
   );
 };

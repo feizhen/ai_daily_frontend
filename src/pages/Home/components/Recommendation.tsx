@@ -6,8 +6,13 @@ import VideoCard from './VideoCard.tsx';
 import VideoPlayerDialog from './VideoPlayerDialog';
 import { getYouTubeVideos, getTopUnpushedNews } from '../../../api/home';
 import type { Video, NewsItem } from '../../../types/api';
+import type { FilterType } from '../index';
 
-const Recommendation: React.FC = () => {
+interface RecommendationProps {
+  activeFilter: FilterType;
+}
+
+const Recommendation: React.FC<RecommendationProps> = ({ activeFilter }) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,10 +40,15 @@ const Recommendation: React.FC = () => {
           getYouTubeVideos(),
           getTopUnpushedNews()
         ]);
-        setVideos(videoData);
-        setNews(newsData);
+        console.log('Video data:', videoData);
+        console.log('News data:', newsData);
+        setVideos(videoData || []);
+        setNews(newsData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
+        // 确保即使出错也设置为空数组
+        setVideos([]);
+        setNews([]);
       } finally {
         setLoading(false);
       }
@@ -47,7 +57,16 @@ const Recommendation: React.FC = () => {
     fetchData();
   }, []);
 
-  const items = [...videos, ...news];
+  // Combine all items
+  const allItems = [...(videos || []), ...(news || [])];
+
+  // Filter items based on activeFilter
+  const items = allItems.filter((item) => {
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'video') return 'videoId' in item;
+    if (activeFilter === 'news') return !('videoId' in item);
+    return true;
+  });
 
   const handleVideoClick = (video: Video) => {
     setSelectedVideo(video);
@@ -59,7 +78,8 @@ const Recommendation: React.FC = () => {
       <div className={styles.header}>
         <h2>Today's recommend</h2>
         <p>showing {items.length} summarys</p>
-        <Button variant="refresh" className={styles.refreshButton}>↻</Button>
+        {/* 刷新按钮暂时屏蔽 */}
+        {/* <Button variant="refresh" className={styles.refreshButton}>↻</Button> */}
       </div>
       {loading ? (
         <div className={styles.loadingContainer}>

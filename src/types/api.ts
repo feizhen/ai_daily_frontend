@@ -16,12 +16,13 @@ export interface Video {
   id: string;
   videoId: string;
   channelId: string;
-  channel: Channel;
+  channel?: Channel;
   title: string;
   description: string;
   thumbnailUrl: string;
   embedUrl: string;
   author: string;
+  authorAvatarUrl?: string;
   duration: number;
   durationFormatted: string;
   publishedAt: string;
@@ -32,6 +33,7 @@ export interface Video {
   tags: string[];
   transcript: string | null;
   aiSummary: string | null;
+  aiSummaryZh?: string | null;
   relevanceScore: number;
   isPushed: boolean;
   isWatched: boolean;
@@ -80,4 +82,31 @@ export interface NewsItem {
   likedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface DailyNewsResponse {
+  success: boolean;
+  data: {
+    items: NewsItem[];
+    pagination: Pagination;
+    date: string;
+  };
+}
+
+export interface DailyVideosResponse {
+  success: boolean;
+  data: {
+    videos: Video[];
+    totalVideos: number;
+    requestedDate: string;
+    actualDate: string;
+    isFallback: boolean;
+  };
 }

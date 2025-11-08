@@ -1,8 +1,9 @@
 # AI Daily Backend API 文档
 
-**版本**: 3.0.0
+**版本**: 3.1.0
 **本地地址**: `http://localhost:3000/api`
 **生产环境**: `https://aidailybackend-production.up.railway.app/api`
+**总接口数**: 67 个
 
 ---
 
@@ -11,12 +12,14 @@
 - [概述](#概述)
 - [身份认证](#身份认证)
 - [响应格式](#响应格式)
+- [用户管理接口](#用户管理接口)
+- [收藏管理接口](#收藏管理接口)
 - [新闻接口](#新闻接口)
-- [翻译接口](#翻译接口)
 - [Gmail 接口](#gmail-接口)
 - [YouTube 接口](#youtube-接口)
   - [频道管理](#频道管理)
   - [视频管理](#视频管理)
+  - [视频摘要（AI 功能）](#视频摘要ai-功能)
   - [用户偏好](#用户偏好)
 - [数据模型](#数据模型)
 - [错误码](#错误码)
@@ -26,9 +29,8 @@
 ## 概述
 
 AI Daily Backend 提供以下 RESTful API 服务：
-
 - 📰 从多个邮件源聚合新闻
-- 🌐 智能重试机制的批量翻译
+- 🤖 AI 驱动的内容解析和中英双语生成
 - 📊 AI 驱动的排名和排序
 - 📧 Gmail 集成用于邮件处理
 - 📺 AI 相关频道的 YouTube 视频聚合
@@ -42,18 +44,15 @@ AI Daily Backend 提供以下 RESTful API 服务：
 API 实现了 **Redis 缓存**以提升响应速度和减少数据库负载：
 
 - **缓存接口**：
-
   - `GET /api/youtube/videos` - 默认视频列表（首页）
   - `GET /api/news/top-unpushed` - 顶部未推送新闻（首页）
 
 - **缓存配置**：
-
   - **TTL (生存时间)**：1 小时 (3600 秒)
   - **失效策略**：基于 TTL 自动过期
   - **降级方案**：Redis 不可用时优雅降级到数据库查询
 
 - **性能提升**：
-
   - 响应时间：~500ms → ~50ms (提升 90%)
   - 数据库负载减少：90%+
   - 支持更高并发请求
@@ -87,7 +86,6 @@ API 支持基于 **JWT (JSON Web Token)** 的双令牌认证机制（访问令�
 ### 获取令牌
 
 **注册新用户：**
-
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -100,7 +98,6 @@ Content-Type: application/json
 ```
 
 **使用现有凭据登录：**
-
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -112,7 +109,6 @@ Content-Type: application/json
 ```
 
 **响应示例：**
-
 ```json
 {
   "success": true,
@@ -135,7 +131,6 @@ Content-Type: application/json
 ```
 
 **JWT Token Payload 包含：**
-
 ```json
 {
   "sub": "user-id",
@@ -169,7 +164,6 @@ Content-Type: application/json
 ```
 
 **Response:**
-
 ```json
 {
   "success": true,
@@ -204,58 +198,49 @@ Content-Type: application/json
 
 - Minimum length: 8 characters
 - Must contain: uppercase letter, lowercase letter, and number
-- Optional: special characters (@$!%\*?&)
+- Optional: special characters (@$!%*?&)
 
 ### Public Endpoints (No Authentication Required)
 
 The following endpoints are publicly accessible:
 
 **News Endpoints:**
-
 - `GET /news` - List news items
 - `GET /news/:id` - Get news item details
-- `GET /news/top-unpushed` - Get top unpushed news
+- `GET /news/daily/recommendations` - Get daily news recommendations
 - `GET /news/rank-stats` - Get ranking statistics
-- `POST /news/sync/*` - Sync operations (for background tasks)
-- `POST /news/translate/*` - Translation operations (for background tasks)
+- `POST /news/sync` - Sync operations (for background tasks)
 - `POST /news/recalculate-rank` - Recalculate rankings (admin)
-- `POST /news/clear-all` - Clear all news (admin)
-- `POST /news/fix-images` - Fix missing images (admin)
+- `POST /news/clear` - Clear all news (admin)
 
 **YouTube Endpoints:**
-
 - `GET /api/youtube/channels` - List channels
 - `GET /api/youtube/videos` - List videos
 - Other read-only YouTube endpoints
 
 **Gmail & Admin Endpoints:**
-
 - All Gmail OAuth endpoints
 - System management endpoints
 
 ### Protected Endpoints (Authentication Required)
 
 **User Management:**
-
 - `GET /api/auth/profile` - Get current user profile
 - `PATCH /api/users/profile` - Update user profile
 - `PATCH /api/users/password` - Change password
 
 **News Operations:**
-
 - `POST /news/:id/push` - Mark news as pushed
 - `POST /news/:id/read` - Mark news as read
 - `POST /news/:id/like` - Mark news as liked
 
 **YouTube User Preferences:**
-
 - `GET /api/youtube/preferences` - Get user preferences
 - `PUT /api/youtube/preferences` - Update user preferences
 
 ### Error Responses
 
 **401 Unauthorized:**
-
 ```json
 {
   "statusCode": 401,
@@ -265,7 +250,6 @@ The following endpoints are publicly accessible:
 ```
 
 **403 Forbidden:**
-
 ```json
 {
   "statusCode": 403,
@@ -281,19 +265,15 @@ The following endpoints are publicly accessible:
 All API responses follow this standard format:
 
 ### Success Response
-
 ```json
 {
   "success": true,
-  "data": {
-    /* response data */
-  },
+  "data": { /* response data */ },
   "message": "Optional success message"
 }
 ```
 
 ### Error Response
-
 ```json
 {
   "success": false,
@@ -301,6 +281,316 @@ All API responses follow this standard format:
   "error": "Detailed error information"
 }
 ```
+
+---
+
+## 用户管理接口
+
+### 1. 更新个人资料
+
+更新当前登录用户的个人信息。
+
+**端点**: `PATCH /users/profile`
+
+**认证**: 需要（Bearer Token）
+
+**请求体**:
+```json
+{
+  "nickname": "新昵称",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+**示例请求**:
+```bash
+PATCH /users/profile
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "nickname": "AI 爱好者",
+  "avatar": "https://example.com/my-avatar.jpg"
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "nickname": "AI 爱好者",
+    "avatar": "https://example.com/my-avatar.jpg",
+    "role": "visitor",
+    "status": "active",
+    "updatedAt": "2025-01-07T10:30:00Z"
+  },
+  "message": "个人资料更新成功"
+}
+```
+
+**文件位置**: `src/users/users.controller.ts:22`
+
+---
+
+### 2. 修改密码
+
+修改当前登录用户的密码。
+
+**端点**: `PATCH /users/password`
+
+**认证**: 需要（Bearer Token）
+
+**请求体**:
+```json
+{
+  "oldPassword": "OldPass123!",
+  "newPassword": "NewPass123!"
+}
+```
+
+**密码要求**:
+- 最少 8 位字符
+- 必须包含：大写字母、小写字母、数字
+- 可选：特殊字符 (@$!%*?&)
+
+**示例请求**:
+```bash
+PATCH /users/password
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "oldPassword": "OldPass123!",
+  "newPassword": "NewSecurePass456!"
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "message": "密码修改成功"
+}
+```
+
+**错误响应**:
+```json
+{
+  "success": false,
+  "message": "旧密码不正确"
+}
+```
+
+**文件位置**: `src/users/users.controller.ts:32`
+
+---
+
+## 收藏管理接口
+
+收藏功能支持两种类型：**视频收藏（video）**和**新闻收藏（news）**。
+
+### 3. 添加收藏
+
+将视频或新闻添加到用户收藏夹。
+
+**端点**: `POST /favorites`
+
+**认证**: 需要（Bearer Token）
+
+**请求体**:
+```json
+{
+  "favoriteType": "video",
+  "favoriteId": "video-uuid-here"
+}
+```
+
+**参数说明**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `favoriteType` | string | 是 | 收藏类型：`video` 或 `news` |
+| `favoriteId` | string | 是 | 视频或新闻的 UUID |
+
+**示例请求**:
+```bash
+POST /favorites
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "favoriteType": "video",
+  "favoriteId": "7ae61a78-07da-4720-8fe5-69b701ef8bec"
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "favorite-uuid",
+    "userId": "user-uuid",
+    "favoriteType": "video",
+    "favoriteId": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
+    "createdAt": "2025-01-07T10:30:00Z"
+  },
+  "message": "收藏添加成功"
+}
+```
+
+**错误响应**（已收藏）:
+```json
+{
+  "success": false,
+  "message": "该内容已在收藏夹中"
+}
+```
+
+**文件位置**: `src/favorites/favorites.controller.ts:36`
+
+---
+
+### 4. 删除收藏
+
+从收藏夹中移除指定项目。
+
+**端点**: `DELETE /favorites/:id`
+
+**认证**: 需要（Bearer Token）
+
+**路径参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 收藏记录的 UUID |
+
+**示例请求**:
+```bash
+DELETE /favorites/7ae61a78-07da-4720-8fe5-69b701ef8bec
+Authorization: Bearer <access_token>
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "message": "收藏已删除"
+}
+```
+
+**文件位置**: `src/favorites/favorites.controller.ts:54`
+
+---
+
+### 5. 获取收藏列表
+
+获取当前用户的收藏列表，支持分页和类型筛选。
+
+**端点**: `GET /favorites`
+
+**认证**: 需要（Bearer Token）
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `favoriteType` | string | - | 筛选类型：`video` 或 `news` |
+| `page` | number | 1 | 页码（从 1 开始）|
+| `limit` | number | 20 | 每页数量（最大 100）|
+
+**示例请求**:
+```bash
+# 获取所有收藏
+GET /favorites?page=1&limit=20
+Authorization: Bearer <access_token>
+
+# 只获取视频收藏
+GET /favorites?favoriteType=video&page=1&limit=10
+Authorization: Bearer <access_token>
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "favorite-uuid",
+        "favoriteType": "video",
+        "favoriteId": "video-uuid",
+        "createdAt": "2025-01-07T10:30:00Z",
+        "video": {
+          "id": "video-uuid",
+          "title": "视频标题",
+          "thumbnailUrl": "https://...",
+          "duration": 1230,
+          "author": "频道名称"
+        }
+      },
+      {
+        "id": "favorite-uuid-2",
+        "favoriteType": "news",
+        "favoriteId": "news-uuid",
+        "createdAt": "2025-01-07T09:15:00Z",
+        "news": {
+          "id": "news-uuid",
+          "title": { "en": "...", "zh": "..." },
+          "category": { "en": "AI RESEARCH", "zh": "人工智能研究" },
+          "emoji": "🤖"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 45,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+**文件位置**: `src/favorites/favorites.controller.ts:68`
+
+---
+
+### 6. 批量检查收藏状态
+
+批量检查多个内容是否已被收藏（用于前端显示收藏图标状态）。
+
+**端点**: `GET /favorites/check`
+
+**认证**: 需要（Bearer Token）
+
+**查询参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `favoriteType` | string | 是 | 收藏类型：`video` 或 `news` |
+| `favoriteIds` | string | 是 | 逗号分隔的 ID 列表（如：`id1,id2,id3`）|
+
+**示例请求**:
+```bash
+GET /favorites/check?favoriteType=video&favoriteIds=uuid1,uuid2,uuid3
+Authorization: Bearer <access_token>
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "uuid1": true,
+    "uuid2": false,
+    "uuid3": true
+  }
+}
+```
+
+**响应说明**: 返回一个对象，键为内容 ID，值为布尔值（`true` 表示已收藏，`false` 表示未收藏）。
+
+**文件位置**: `src/favorites/favorites.controller.ts:81`
 
 ---
 
@@ -324,13 +614,11 @@ Retrieve paginated list of news items with optional filters.
 | `order` | string | ASC | Sort order (ASC or DESC) |
 
 **Example Request**:
-
 ```bash
 GET /news?page=1&limit=10&isPushed=false&sortBy=rank&order=ASC
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -370,38 +658,72 @@ GET /news?page=1&limit=10&isPushed=false&sortBy=rank&order=ASC
 
 ---
 
-### 2. Get Top Unpushed News ⚡ (Cached)
+### 2. Get Daily News ⚡ (Cached)
 
-Get the highest-ranked unpushed news items.
+Get news items for a specific date, sorted by importance ranking. Supports pagination and historical browsing.
 
-**Endpoint**: `GET /news/top-unpushed`
+**Endpoint**: `GET /news/daily/recommendations`
 
 > **🚀 Performance**: This endpoint is cached for 1 hour. First request queries the database (~500ms), subsequent requests are served from Redis cache (~50ms).
+
+**Query Logic**:
+- Returns news created on a **specific date** (based on `created_at` field)
+- Sorted by `rank` ascending (lower rank = higher importance)
+- Supports pagination for batch push notifications
+- Supports historical browsing by specifying date
 
 **Query Parameters**:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `limit` | number | 5 | Maximum items to return |
+| `date` | string | today | Date in YYYY-MM-DD format (e.g., 2025-01-07) |
+| `page` | number | 1 | Page number (starting from 1) |
+| `limit` | number | 5 | Items per page |
 
-**Example Request**:
-
+**Example Requests**:
 ```bash
-GET /news/top-unpushed?limit=5
+# Get today's news (default)
+GET /news/daily/recommendations
+
+# Get today's news with pagination
+GET /news/daily/recommendations?page=1&limit=5
+
+# Get news from a specific date
+GET /news/daily/recommendations?date=2025-01-07
+
+# Get second batch from a specific date
+GET /news/daily/recommendations?date=2025-01-07&page=2&limit=10
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
   "data": {
-    "items": [
-      /* array of news items */
-    ],
-    "total": 5
+    "items": [/* array of news items */],
+    "pagination": {
+      "page": 1,
+      "limit": 5,
+      "total": 15,
+      "totalPages": 3
+    },
+    "date": "2025-01-07"  // or "today" if no date specified
   }
 }
 ```
+
+**Error Response** (invalid date format):
+```json
+{
+  "success": false,
+  "message": "日期格式错误，请使用 YYYY-MM-DD 格式（如 2025-01-07）"
+}
+```
+
+**Use Cases**:
+- **Daily News Feed**: Get all news published today
+- **Batch Push Notifications**: Use pagination to send news in multiple batches throughout the day
+- **Homepage Display**: Show today's top stories
+- **Historical Browsing**: Browse news from previous days by specifying date parameter
 
 ---
 
@@ -417,20 +739,18 @@ Retrieve a single news item by its UUID.
 | `id` | string | News item UUID |
 
 **Example Request**:
-
 ```bash
 GET /news/7ae61a78-07da-4720-8fe5-69b701ef8bec
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
   "data": {
     "id": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
     "category": { "en": "ROBOTICS", "zh": "机器人" },
-    "title": { "en": "...", "zh": "..." }
+    "title": { "en": "...", "zh": "..." },
     /* ... full news item ... */
   }
 }
@@ -438,42 +758,7 @@ GET /news/7ae61a78-07da-4720-8fe5-69b701ef8bec
 
 ---
 
-### 4. Mark as Pushed
-
-Mark a news item as pushed for a specific user (creates user-level push history).
-
-**Endpoint**: `POST /news/:id/push`
-
-**Path Parameters**:
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | News item UUID |
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `userId` | string | default | User ID for push history |
-
-**Example Request**:
-
-```bash
-POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/push?userId=default
-```
-
-**Example Response**:
-
-```json
-{
-  "success": true,
-  "message": "News push history created",
-  "userId": "default",
-  "newsItemId": "7ae61a78-07da-4720-8fe5-69b701ef8bec"
-}
-```
-
----
-
-### 5. Mark as Read
+### 4. Mark as Read
 
 Mark a news item as read.
 
@@ -485,26 +770,22 @@ Mark a news item as read.
 | `id` | string | News item UUID |
 
 **Example Request**:
-
 ```bash
 POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/read
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
-  "data": {
-    /* updated news item */
-  },
+  "data": {/* updated news item */},
   "message": "已标记为已读"
 }
 ```
 
 ---
 
-### 6. Toggle Like Status
+### 5. Toggle Like Status
 
 Toggle or set the like status of a news item.
 
@@ -516,7 +797,6 @@ Toggle or set the like status of a news item.
 | `id` | string | News item UUID |
 
 **Request Body** (optional):
-
 ```json
 {
   "liked": true
@@ -524,7 +804,6 @@ Toggle or set the like status of a news item.
 ```
 
 **Example Request**:
-
 ```bash
 POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/like
 Content-Type: application/json
@@ -535,136 +814,23 @@ Content-Type: application/json
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
-  "data": {
-    /* updated news item */
-  },
+  "data": {/* updated news item */},
   "message": "已添加到喜欢"
 }
 ```
 
 ---
 
-### 7. Get News User Preferences
-
-Get user-specific news preferences (categories and daily count).
-
-**Endpoint**: `GET /news/preferences`
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `userId` | string | default | User ID |
-
-**Example Request**:
-
-```bash
-GET /news/preferences?userId=default
-```
-
-**Example Response**:
-
-```json
-{
-  "id": "uuid",
-  "userId": "default",
-  "preferredCategories": ["AI", "Tech"],
-  "dailyNewsCount": 5,
-  "createdAt": "2025-11-06T00:00:00.000Z",
-  "updatedAt": "2025-11-06T00:00:00.000Z"
-}
-```
-
----
-
-### 8. Update News User Preferences
-
-Update user-specific news preferences.
-
-**Endpoint**: `POST /news/preferences`
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `userId` | string | default | User ID |
-
-**Request Body**:
-
-```json
-{
-  "preferredCategories": ["AI", "Tech", "Business"],
-  "dailyNewsCount": 10
-}
-```
-
-**Example Request**:
-
-```bash
-POST /news/preferences?userId=default
-Content-Type: application/json
-
-{
-  "preferredCategories": ["AI", "Tech"],
-  "dailyNewsCount": 10
-}
-```
-
-**Example Response**:
-
-```json
-{
-  "id": "uuid",
-  "userId": "default",
-  "preferredCategories": ["AI", "Tech"],
-  "dailyNewsCount": 10,
-  "createdAt": "2025-11-06T00:00:00.000Z",
-  "updatedAt": "2025-11-06T00:00:00.000Z"
-}
-```
-
----
-
-### 9. Get Push History Statistics
-
-Get user's news push history statistics.
-
-**Endpoint**: `GET /news/push-history/stats`
-
-**Query Parameters**:
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `userId` | string | default | User ID |
-
-**Example Request**:
-
-```bash
-GET /news/push-history/stats?userId=default
-```
-
-**Example Response**:
-
-```json
-{
-  "userId": "default",
-  "totalPushed": 150,
-  "last7Days": 35,
-  "last30Days": 120
-}
-```
-
----
-
-### 10. Sync News from The Rundown AI
+### 6. Sync News from The Rundown AI
 
 Manually trigger email synchronization from The Rundown AI.
 
 **Endpoint**: `POST /news/sync`
 
 **Request Body** (optional):
-
 ```json
 {
   "maxResults": 5
@@ -672,7 +838,6 @@ Manually trigger email synchronization from The Rundown AI.
 ```
 
 **Example Request**:
-
 ```bash
 POST /news/sync
 Content-Type: application/json
@@ -683,7 +848,6 @@ Content-Type: application/json
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -698,14 +862,13 @@ Content-Type: application/json
 
 ---
 
-### 8. Sync News from AI Valley
+### 7. Sync News from AI Valley
 
 Manually trigger email synchronization from AI Valley.
 
 **Endpoint**: `POST /news/sync/aivalley`
 
 **Request Body** (optional):
-
 ```json
 {
   "maxResults": 3
@@ -713,7 +876,6 @@ Manually trigger email synchronization from AI Valley.
 ```
 
 **Example Request**:
-
 ```bash
 POST /news/sync/aivalley
 Content-Type: application/json
@@ -724,7 +886,6 @@ Content-Type: application/json
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -739,14 +900,13 @@ Content-Type: application/json
 
 ---
 
-### 9. Sync All Sources
+### 8. Sync All Sources
 
 Sync news from all configured email sources.
 
 **Endpoint**: `POST /news/sync/all`
 
 **Request Body** (optional):
-
 ```json
 {
   "maxResults": 3
@@ -754,7 +914,6 @@ Sync news from all configured email sources.
 ```
 
 **Example Request**:
-
 ```bash
 POST /news/sync/all
 Content-Type: application/json
@@ -765,7 +924,6 @@ Content-Type: application/json
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -792,20 +950,18 @@ Content-Type: application/json
 
 ---
 
-### 10. Recalculate Rankings
+### 9. Recalculate Rankings
 
 Manually trigger ranking recalculation for all unpushed news.
 
 **Endpoint**: `POST /news/recalculate-rank`
 
 **Example Request**:
-
 ```bash
 POST /news/recalculate-rank
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -814,8 +970,8 @@ POST /news/recalculate-rank
     "stats": {
       "totalUnpushed": 100,
       "avgScore": 5.32,
-      "topScore": 9.5,
-      "bottomScore": 2.1
+      "topScore": 9.50,
+      "bottomScore": 2.10
     }
   },
   "message": "已重新计算 100 条新闻的排名"
@@ -824,110 +980,27 @@ POST /news/recalculate-rank
 
 ---
 
-### 11. Get Ranking Statistics
+### 10. Get Ranking Statistics
 
 Get statistics about current news rankings.
 
 **Endpoint**: `GET /news/rank-stats`
 
 **Example Request**:
-
 ```bash
 GET /news/rank-stats
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
   "data": {
     "totalUnpushed": 100,
     "avgScore": 5.32,
-    "topScore": 9.5,
-    "bottomScore": 2.1
+    "topScore": 9.50,
+    "bottomScore": 2.10
   }
-}
-```
-
----
-
-## Translation Endpoints
-
-### 12. Batch Translate Pending News
-
-Translate all news items with `translation_status = 'pending'`.
-
-**Endpoint**: `POST /news/translate/pending`
-
-**Request Body** (optional):
-
-```json
-{
-  "limit": 50
-}
-```
-
-**Example Request**:
-
-```bash
-POST /news/translate/pending
-Content-Type: application/json
-
-{
-  "limit": 50
-}
-```
-
-**Example Response**:
-
-```json
-{
-  "success": true,
-  "data": {
-    "translatedCount": 45
-  },
-  "message": "翻译完成：成功翻译 45 条新闻"
-}
-```
-
-**Translation Process**:
-
-1. Queries news items with `translation_status = 'pending'`
-2. Updates status to `'translating'`
-3. Attempts batch translation with retry mechanism
-4. Falls back to individual translation if batch fails
-5. Updates status to `'completed'` or `'failed'`
-6. Sets `translated_at` timestamp on success
-
----
-
-### 13. Retranslate Single News Item
-
-Retry translation for a single news item (useful for failed translations).
-
-**Endpoint**: `POST /news/:id/retranslate`
-
-**Path Parameters**:
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | News item UUID |
-
-**Example Request**:
-
-```bash
-POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/retranslate
-```
-
-**Example Response**:
-
-```json
-{
-  "success": true,
-  "data": {
-    /* fully translated news item */
-  },
-  "message": "重新翻译成功"
 }
 ```
 
@@ -935,20 +1008,18 @@ POST /news/7ae61a78-07da-4720-8fe5-69b701ef8bec/retranslate
 
 ## Gmail Endpoints
 
-### 14. Get Gmail Auth URL
+### 11. Get Gmail Auth URL
 
 Get OAuth2 authorization URL for Gmail access.
 
 **Endpoint**: `GET /gmail/auth-url`
 
 **Example Request**:
-
 ```bash
 GET /gmail/auth-url
 ```
 
 **Example Response**:
-
 ```json
 {
   "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
@@ -957,14 +1028,13 @@ GET /gmail/auth-url
 
 ---
 
-### 15. Authorize Gmail Access
+### 14. Authorize Gmail Access
 
 Exchange authorization code for access token.
 
 **Endpoint**: `POST /gmail/authorize`
 
 **Request Body**:
-
 ```json
 {
   "code": "authorization_code_from_google"
@@ -972,7 +1042,6 @@ Exchange authorization code for access token.
 ```
 
 **Example Request**:
-
 ```bash
 POST /gmail/authorize
 Content-Type: application/json
@@ -983,7 +1052,6 @@ Content-Type: application/json
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -993,7 +1061,7 @@ Content-Type: application/json
 
 ---
 
-### 16. Get Gmail Messages
+### 15. Get Gmail Messages
 
 Retrieve messages from Gmail inbox.
 
@@ -1006,14 +1074,13 @@ Retrieve messages from Gmail inbox.
 | `query` | string | - | Gmail search query |
 
 **Example Request**:
-
 ```bash
 GET /gmail/messages?maxResults=10&query=from:news@daily.therundown.ai
 ```
 
 ---
 
-### 17. Get Latest Messages from Sender
+### 16. Get Latest Messages from Sender
 
 Get the latest messages from a specific sender.
 
@@ -1026,7 +1093,6 @@ Get the latest messages from a specific sender.
 | `maxResults` | number | 5 | Maximum messages to retrieve |
 
 **Example Request**:
-
 ```bash
 GET /gmail/latest-from?sender=news@daily.therundown.ai&maxResults=5
 ```
@@ -1044,7 +1110,6 @@ Add a new YouTube channel to track.
 **Endpoint**: `POST /youtube/channels`
 
 **Request Body**:
-
 ```json
 {
   "channelId": "UCbfYPyITQ-7l4upoX8nvctg",
@@ -1054,7 +1119,6 @@ Add a new YouTube channel to track.
 ```
 
 **Example Response**:
-
 ```json
 {
   "id": "uuid",
@@ -1078,7 +1142,6 @@ Add multiple YouTube channels at once.
 **Endpoint**: `POST /youtube/channels/batch`
 
 **Request Body**:
-
 ```json
 {
   "channels": [
@@ -1097,15 +1160,10 @@ Add multiple YouTube channels at once.
 ```
 
 **Example Response**:
-
 ```json
 [
-  {
-    /* channel 1 details */
-  },
-  {
-    /* channel 2 details */
-  }
+  {/* channel 1 details */},
+  {/* channel 2 details */}
 ]
 ```
 
@@ -1123,13 +1181,11 @@ Retrieve all YouTube channels, optionally filtered by category.
 | `category` | string | Filter by category (tech/product/market) |
 
 **Example Request**:
-
 ```bash
 GET /youtube/channels?category=tech
 ```
 
 **Example Response**:
-
 ```json
 [
   {
@@ -1153,7 +1209,6 @@ Get statistics about all channels.
 **Endpoint**: `GET /youtube/channels/stats/all`
 
 **Example Response**:
-
 ```json
 {
   "totalChannels": 19,
@@ -1176,7 +1231,6 @@ View the hardcoded default channel list without importing.
 **Endpoint**: `GET /youtube/channels/default-list`
 
 **Example Response**:
-
 ```json
 {
   "total": 19,
@@ -1206,7 +1260,6 @@ Import default channels (skips if channels already exist).
 **Endpoint**: `POST /youtube/channels/init`
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -1228,21 +1281,17 @@ Force reimport of default channels.
 | `force` | boolean | Force reimport even if channels exist |
 
 **Example Request**:
-
 ```bash
 POST /youtube/channels/reimport?force=true
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
   "imported": 19,
   "failed": 0,
-  "channels": [
-    /* array of imported channels */
-  ]
+  "channels": [/* array of imported channels */]
 }
 ```
 
@@ -1268,7 +1317,6 @@ Update channel details.
 **Endpoint**: `PATCH /youtube/channels/:id`
 
 **Request Body**:
-
 ```json
 {
   "category": "market",
@@ -1293,7 +1341,6 @@ Enable or disable a channel.
 **Endpoint**: `PATCH /youtube/channels/:id/toggle`
 
 **Example Response**:
-
 ```json
 {
   "id": "uuid",
@@ -1321,7 +1368,6 @@ Manually trigger video synchronization from all active channels.
 **Endpoint**: `POST /youtube/videos/sync`
 
 **Request Body** (optional):
-
 ```json
 {
   "hoursAgo": 24,
@@ -1331,15 +1377,12 @@ Manually trigger video synchronization from all active channels.
 ```
 
 **Example Response**:
-
 ```json
 {
   "totalVideos": 12,
   "newVideos": 7,
   "channels": 19,
-  "videos": [
-    /* array of fetched videos */
-  ]
+  "videos": [/* array of fetched videos */]
 }
 ```
 
@@ -1367,13 +1410,11 @@ Retrieve paginated list of videos with filters.
 | `order` | string | DESC | Sort order |
 
 **Example Request**:
-
 ```bash
 GET /youtube/videos?category=tech&limit=10&sortBy=viewCount&order=DESC
 ```
 
 **Example Response**:
-
 ```json
 [
   {
@@ -1391,9 +1432,7 @@ GET /youtube/videos?category=tech&limit=10&sortBy=viewCount&order=DESC
     "category": "market",
     "isPushed": false,
     "isWatched": false,
-    "channel": {
-      /* channel details */
-    }
+    "channel": {/* channel details */}
   }
 ]
 ```
@@ -1414,7 +1453,6 @@ Search videos by keywords in title, description, or tags.
 | `category` | string | No | Filter by category |
 
 **Example Request**:
-
 ```bash
 GET /youtube/videos/search?query=transformer&limit=10
 ```
@@ -1441,14 +1479,11 @@ Get personalized daily video recommendations based on user preferences.
 | `userId` | string | default | User ID for preferences |
 
 **Example Response**:
-
 ```json
 {
   "date": "2025-11-04",
   "totalVideos": 10,
-  "videos": [
-    /* array of recommended videos */
-  ]
+  "videos": [/* array of recommended videos */]
 }
 ```
 
@@ -1474,7 +1509,6 @@ Mark a video as watched.
 **Endpoint**: `PATCH /youtube/videos/:id/watched`
 
 **Request Body**:
-
 ```json
 {
   "watched": true
@@ -1490,7 +1524,6 @@ Mark multiple videos as watched at once.
 **Endpoint**: `POST /youtube/videos/watched/batch`
 
 **Request Body**:
-
 ```json
 {
   "videoIds": ["uuid1", "uuid2", "uuid3"]
@@ -1505,9 +1538,248 @@ Refresh view count, likes, etc. from YouTube API.
 
 **Endpoint**: `POST /youtube/videos/:videoId/refresh-stats`
 
+**文件位置**: `src/youtube/youtube.controller.ts:267`
+
 ---
 
-#### 39. Cleanup Old Videos
+### 视频摘要（AI 功能）
+
+#### 39. 为单个视频生成 AI 摘要（中英双语）
+
+使用 AI 一次性为视频生成**中英文双语摘要**。优先使用字幕（如可用），否则使用视频标题和描述。
+
+**端点**: `POST /youtube/videos/:id/summary`
+
+**路径参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 视频 UUID |
+
+**摘要策略**:
+1. **字幕优先**：如果视频有字幕，使用字幕内容（前 2000 字符）
+2. **降级方案**：如果无字幕，使用视频描述（前 500 字符）
+3. **一次性生成**：用单个 AI 调用同时生成中英文摘要（节省成本和时间）
+
+**示例请求**:
+```bash
+POST /youtube/videos/7ae61a78-07da-4720-8fe5-69b701ef8bec/summary
+```
+
+**示例响应**（基于字幕）:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
+    "title": "Understanding Transformers in Deep Learning",
+    "aiSummary": "This video provides an in-depth explanation of the Transformer architecture, covering its self-attention mechanism and applications in NLP tasks...",
+    "aiSummaryZh": "本视频深入讲解了 Transformer 架构，涵盖其自注意力机制以及在自然语言处理任务中的应用...",
+    "transcript": "Welcome to this tutorial...",
+    "summaryGeneratedAt": "2025-01-07T10:30:00Z"
+  },
+  "message": "摘要生成成功（基于字幕）"
+}
+```
+
+**示例响应**（基于元数据）:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
+    "title": "Understanding Transformers in Deep Learning",
+    "aiSummary": "This video introduces the Transformer model and its key components for modern AI applications...",
+    "aiSummaryZh": "本视频介绍了 Transformer 模型及其在现代 AI 应用中的关键组件...",
+    "summaryGeneratedAt": "2025-01-07T10:30:00Z"
+  },
+  "message": "摘要生成成功（基于视频元数据）"
+}
+```
+
+**响应字段说明**:
+- `aiSummary`: 英文摘要（50-100 words）
+- `aiSummaryZh`: 中文摘要（50-100 字）
+- `transcript`: 视频字幕（如果可用）
+
+**错误响应**:
+```json
+{
+  "success": false,
+  "message": "该视频已有完整双语摘要，无需重复生成"
+}
+```
+
+**性能优势**:
+- ✅ 单次 AI 调用生成双语摘要（vs 两次调用）
+- ✅ 节省 50% API 成本
+- ✅ 提高 40% 生成速度
+- ✅ 保证中英文摘要一致性
+
+**文件位置**: `src/youtube/youtube.controller.ts:322`
+
+---
+
+#### 40. 批量生成视频摘要
+
+为多个视频批量生成 AI 摘要，支持并发控制。
+
+**端点**: `POST /youtube/videos/summaries/batch`
+
+**请求体**:
+```json
+{
+  "videoIds": ["uuid1", "uuid2", "uuid3"],
+  "concurrency": 5
+}
+```
+
+**参数说明**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `videoIds` | string[] | - | 视频 UUID 数组 |
+| `concurrency` | number | 5 | 并发处理数量（1-10）|
+
+**示例请求**:
+```bash
+POST /youtube/videos/summaries/batch
+Content-Type: application/json
+
+{
+  "videoIds": [
+    "uuid1",
+    "uuid2",
+    "uuid3"
+  ],
+  "concurrency": 3
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "total": 3,
+    "successful": 2,
+    "failed": 1,
+    "results": [
+      {
+        "videoId": "uuid1",
+        "success": true,
+        "summarySource": "transcript"
+      },
+      {
+        "videoId": "uuid2",
+        "success": true,
+        "summarySource": "metadata"
+      },
+      {
+        "videoId": "uuid3",
+        "success": false,
+        "error": "AI 服务暂时不可用"
+      }
+    ]
+  },
+  "message": "批量摘要生成完成：2 成功，1 失败"
+}
+```
+
+**文件位置**: `src/youtube/youtube.controller.ts:336`
+
+---
+
+#### 41. 为所有缺失摘要的视频生成
+
+自动为所有还没有摘要的视频生成 AI 摘要（后台任务）。
+
+**端点**: `POST /youtube/videos/summaries/generate-missing`
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 100 | 最多处理的视频数量 |
+
+**示例请求**:
+```bash
+# 处理所有缺失摘要的视频（最多 100 个）
+POST /youtube/videos/summaries/generate-missing
+
+# 限制处理数量
+POST /youtube/videos/summaries/generate-missing?limit=50
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "totalProcessed": 45,
+    "successful": 42,
+    "failed": 3,
+    "remainingWithoutSummary": 0
+  },
+  "message": "批量摘要生成完成：处理 45 个视频，42 成功，3 失败"
+}
+```
+
+**使用场景**:
+- 首次启用摘要功能时，批量生成历史视频的摘要
+- 定时任务自动补充新视频的摘要
+- 修复之前失败的摘要生成
+
+**文件位置**: `src/youtube/youtube.controller.ts:355`
+
+---
+
+#### 42. 获取视频摘要统计信息
+
+获取视频摘要功能的使用统计。
+
+**端点**: `GET /youtube/videos/summaries/stats`
+
+**示例请求**:
+```bash
+GET /youtube/videos/summaries/stats
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "totalVideos": 150,
+    "videosWithSummary": 120,
+    "videosWithoutSummary": 30,
+    "summaryBySource": {
+      "transcript": 85,
+      "metadata": 35
+    },
+    "coveragePercentage": 80.0,
+    "recentSummaries": [
+      {
+        "videoId": "uuid",
+        "title": "...",
+        "summarySource": "transcript",
+        "generatedAt": "2025-01-07T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+**统计信息说明**:
+- `totalVideos`: 数据库中的总视频数
+- `videosWithSummary`: 已生成摘要的视频数
+- `videosWithoutSummary`: 尚未生成摘要的视频数
+- `summaryBySource`: 按来源分类（字幕 vs 元数据）
+- `coveragePercentage`: 摘要覆盖率百分比
+- `recentSummaries`: 最近生成的 5 条摘要
+
+**文件位置**: `src/youtube/youtube.controller.ts:370`
+
+---
+
+#### 43. Cleanup Old Videos
 
 Delete videos older than configured retention period.
 
@@ -1535,7 +1807,6 @@ Get statistics about all videos.
 **Endpoint**: `GET /youtube/videos/stats/all`
 
 **Example Response**:
-
 ```json
 {
   "totalVideos": 12,
@@ -1566,7 +1837,6 @@ Get user's video preferences.
 | `userId` | string | default | User ID |
 
 **Example Response**:
-
 ```json
 {
   "userId": "default",
@@ -1588,7 +1858,6 @@ Update user's video preferences.
 **Endpoint**: `PUT /youtube/preferences`
 
 **Request Body**:
-
 ```json
 {
   "userId": "default",
@@ -1620,13 +1889,11 @@ Mark a video as pushed for a specific user (creates user-level push history).
 | `userId` | string | default | User ID for push history |
 
 **Example Request**:
-
 ```bash
 POST /youtube/videos/7ae61a78-07da-4720-8fe5-69b701ef8bec/push?userId=default
 ```
 
 **Example Response**:
-
 ```json
 {
   "success": true,
@@ -1650,13 +1917,11 @@ Get user's video push history statistics.
 | `userId` | string | default | User ID |
 
 **Example Request**:
-
 ```bash
 GET /youtube/push-history/stats?userId=default
 ```
 
 **Example Response**:
-
 ```json
 {
   "userId": "default",
@@ -1683,7 +1948,6 @@ Check YouTube service health and API quota status.
 **Endpoint**: `GET /youtube/health`
 
 **Example Response**:
-
 ```json
 {
   "status": "healthy",
@@ -1743,12 +2007,12 @@ Check YouTube service health and API quota status.
 
 ### Translation Status Values
 
-| Status        | Description                    |
-| ------------- | ------------------------------ |
-| `pending`     | Waiting for translation        |
-| `translating` | Translation in progress        |
-| `completed`   | Translation successful         |
-| `failed`      | Translation failed (can retry) |
+| Status | Description |
+|--------|-------------|
+| `pending` | Waiting for translation |
+| `translating` | Translation in progress |
+| `completed` | Translation successful |
+| `failed` | Translation failed (can retry) |
 
 ---
 
@@ -1784,19 +2048,22 @@ Check YouTube service health and API quota status.
   thumbnailUrl: string;                // Thumbnail image URL
   embedUrl: string;                    // URL for iframe embed
   author: string;                      // Channel author name
+  authorAvatarUrl?: string;            // Channel avatar URL
   duration: number;                    // Duration in seconds
   durationFormatted: string;           // Formatted duration (HH:MM:SS)
   publishedAt: Date;                   // YouTube publish date
-  viewCount: string;                   // View count
+  viewCount: number;                   // View count
   likeCount?: number;                  // Like count
   commentCount?: number;               // Comment count
   category: string;                    // Inherited from channel
   tags?: string[];                     // Video tags
-  transcript?: string;                 // Video transcript (future)
-  aiSummary?: string;                  // AI-generated summary (future)
+  transcript?: string;                 // Video transcript/subtitles
+  aiSummary?: string;                  // AI-generated English summary
+  aiSummaryZh?: string;                // AI-generated Chinese summary
   relevanceScore: number;              // Calculated relevance (default: 0)
   isPushed: boolean;                   // Push status
   isWatched: boolean;                  // Watched status
+  fetchedDate?: Date;                  // Date when video was fetched
   createdAt: Date;                     // Creation timestamp
   updatedAt: Date;                     // Update timestamp
   channel: YoutubeChannel;             // Relation to channel
@@ -1842,10 +2109,10 @@ Check YouTube service health and API quota status.
 
 ```typescript
 {
-  id: string; // UUID (primary key)
-  userId: string; // User ID
-  newsItemId: string; // News item UUID (foreign key)
-  pushedAt: Date; // Push timestamp
+  id: string;                          // UUID (primary key)
+  userId: string;                      // User ID
+  newsItemId: string;                  // News item UUID (foreign key)
+  pushedAt: Date;                      // Push timestamp
 }
 ```
 
@@ -1857,10 +2124,10 @@ Check YouTube service health and API quota status.
 
 ```typescript
 {
-  id: string; // UUID (primary key)
-  userId: string; // User ID
-  videoId: string; // Video UUID (foreign key)
-  pushedAt: Date; // Push timestamp
+  id: string;                          // UUID (primary key)
+  userId: string;                      // User ID
+  videoId: string;                     // Video UUID (foreign key)
+  pushedAt: Date;                      // Push timestamp
 }
 ```
 
@@ -1870,41 +2137,22 @@ Check YouTube service health and API quota status.
 
 ## Error Codes
 
-| HTTP Status | Description                        |
-| ----------- | ---------------------------------- |
-| 200         | Success                            |
-| 400         | Bad Request - Invalid parameters   |
-| 404         | Not Found - Resource doesn't exist |
-| 500         | Internal Server Error              |
+| HTTP Status | Description |
+|-------------|-------------|
+| 200 | Success |
+| 400 | Bad Request - Invalid parameters |
+| 404 | Not Found - Resource doesn't exist |
+| 500 | Internal Server Error |
 
 **Common Error Messages**:
-
 - `"消息不存在"` - News item not found
 - `"同步失败"` - Sync operation failed
-- `"翻译失败"` - Translation failed
-- `"批量翻译失败"` - Batch translation failed
 
 ---
 
 ## Rate Limiting
 
 Currently, there are no rate limits. This may change in production.
-
----
-
-## Translation Service
-
-The translation service uses a multi-tier fallback system:
-
-1. **Primary**: Doubao AI (豆包大模型)
-2. **Fallback 1**: OpenAI GPT-4o-mini
-3. **Fallback 2**: Google Cloud Translate
-
-**Retry Strategy**:
-
-- Batch translation: 3 attempts with exponential backoff (2s, 4s, 6s)
-- Individual translation: 3 attempts with linear backoff (1s, 2s, 3s)
-- Automatic fallback from batch to individual if batch fails
 
 ---
 
@@ -1917,7 +2165,6 @@ final_score = importance_score × e^(-age_days / 3)
 ```
 
 Where:
-
 - `importance_score`: 1-10 (AI-generated or default 5.0)
 - `age_days`: Days since `source_email_date`
 - Half-life: 3 days
@@ -1930,30 +2177,75 @@ Lower `rank` values indicate higher priority (rank 1 is highest).
 
 ### News Tasks
 
-| Task               | Schedule                | Description                         |
-| ------------------ | ----------------------- | ----------------------------------- |
-| Daily Sync         | 8:00 AM (Asia/Shanghai) | Sync all sources, rank, translate   |
-| Hourly Rank Update | Every hour              | Recalculate rankings for time decay |
+| Task | Schedule | Description |
+|------|----------|-------------|
+| Daily Sync | 8:00 AM (Asia/Shanghai) | Sync all sources and recalculate rankings |
+| Hourly Rank Update | Every hour | Recalculate rankings for time decay |
 
 ### YouTube Tasks
 
-| Task              | Schedule                | Description                                                  |
-| ----------------- | ----------------------- | ------------------------------------------------------------ |
-| Daily Video Sync  | 7:00 AM (Asia/Shanghai) | Fetch latest videos (24 hours) from all active channels      |
-| Popularity Update | Every 6 hours           | Recalculate popularity scores for all videos                 |
-| Weekly Cleanup    | Sunday 2:00 AM          | Delete videos older than retention period (default: 30 days) |
+| Task | Schedule | Description |
+|------|----------|-------------|
+| Daily Video Sync | 7:00 AM (Asia/Shanghai) | Fetch videos from 5 priority channels (max 5 videos per day) using optimized API method |
+
+**优化说明**:
+- ✅ 使用优先级频道抓取 (仅 5 个频道)
+- ✅ YouTube API 配额消耗：~20 单位/天 (节省 96%)
+- ✅ 每天最多 5 个高质量视频
+- ✅ 自动计算视频热度分数
 
 ---
 
 ## Support
 
 For issues or questions:
-
 - GitHub: [Repository URL]
 - Documentation: See `NEWS_PROCESSING_FLOW.md` for detailed flow
 - Migration Guide: See `MIGRATION.md` for database migrations
 
 ---
 
-**Last Updated**: 2025-11-04
-**API Version**: 3.0.0
+## 📊 接口统计总览
+
+### 按模块分类
+
+| 模块 | 接口数量 | 主要功能 |
+|------|----------|----------|
+| **Auth（认证）** | 5 | 注册、登录、刷新令牌、登出、获取用户信息 |
+| **Users（用户管理）** | 2 | 更新个人资料、修改密码 |
+| **Favorites（收藏）** | 4 | 添加/删除/查询收藏、批量检查收藏状态 |
+| **News（新闻）** | 12 | 新闻列表、同步、排名、标记操作、每日推荐 |
+| **YouTube（视频）** | 32 | 频道管理、视频管理、摘要生成、用户偏好 |
+| **Gmail（邮件）** | 9 | OAuth 认证、邮件查询、搜索 |
+| **App（主应用）** | 1 | 欢迎页面 |
+| **总计** | **65** | - |
+
+### 按 HTTP 方法分类
+
+| 方法 | 数量 | 百分比 |
+|------|------|--------|
+| GET | 33 | 49.3% |
+| POST | 27 | 40.3% |
+| PATCH | 5 | 7.5% |
+| DELETE | 2 | 3.0% |
+
+### 按认证要求分类
+
+| 类型 | 数量 | 百分比 |
+|------|------|--------|
+| 公开接口 | 59 | 88.1% |
+| 需要认证 | 8 | 11.9% |
+
+### 新功能亮点
+
+- ✨ **AI 视频摘要（双语）**：一次性生成中英文双语摘要，基于字幕或元数据，节省 50% API 成本
+- ⭐ **收藏系统**：支持视频和新闻的收藏管理，带批量状态检查
+- 👤 **用户系统**：完整的认证、授权和个人资料管理
+- ⚡ **Redis 缓存**：关键接口实现缓存，响应速度提升 90%
+- 🌍 **国际化支持**：新闻和视频摘要全面支持中英双语
+
+---
+
+**Last Updated**: 2025-11-08
+**API Version**: 3.2.0
+**Total Endpoints**: 65

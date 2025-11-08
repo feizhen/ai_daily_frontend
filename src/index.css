@@ -128,5 +128,32 @@ a:hover {
 .btn-logout:hover:not(:disabled) {
   background-color: #dc2626;
 }
+
+/* Sheet bottom animation */
+[role="dialog"][data-state="open"] {
+  animation: slideInFromBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[role="dialog"][data-state="closed"] {
+  animation: slideOutToBottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInFromBottom {
+  from {
+    transform: translate(-50%, 100%);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes slideOutToBottom {
+  from {
+    transform: translate(-50%, 0);
+  }
+  to {
+    transform: translate(-50%, 100%);
+  }
+}
 }
 

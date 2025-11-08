@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye } from 'lucide-react';
+import { Eye, Bookmark, Settings, X } from 'lucide-react';
 import type { Video } from '../../../types/api';
 import { formatNumber, formatRelativeTime } from '../../../lib/formatters';
 import styles from './VideoPlayerDialog.module.less';
@@ -15,44 +15,121 @@ interface VideoPlayerDialogProps {
 
 const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOpenChange }) => {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   if (!video) return null;
+
+  // 优化 YouTube 嵌入 URL，使用官方 API 参数移除多余信息
+  const getOptimizedEmbedUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+
+      // YouTube IFrame Player API 官方参数
+      // 参考：https://developers.google.com/youtube/player_parameters
+
+      urlObj.searchParams.set('modestbranding', '1'); // 移除 YouTube logo（仅在控制栏）
+      urlObj.searchParams.set('rel', '0'); // 播放结束后显示来自同一频道的相关视频
+      urlObj.searchParams.set('iv_load_policy', '3'); // 隐藏视频注释
+      urlObj.searchParams.set('color', 'white'); // 使用白色进度条
+      urlObj.searchParams.set('playsinline', '1'); // 内联播放（移动端）
+      urlObj.searchParams.set('controls', '1'); // 显示播放控制
+      urlObj.searchParams.set('disablekb', '0'); // 启用键盘控制
+      urlObj.searchParams.set('fs', '1'); // 允许全屏
+      urlObj.searchParams.set('autohide', '1'); // 播放时自动隐藏控制条
+
+      // 注意：showinfo 参数已被弃用，无法再隐藏标题和上传者信息
+      // YouTube 不再提供完全隐藏标题栏的官方方式
+
+      return urlObj.toString();
+    } catch {
+      return url;
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className={styles.sheetContent}>
         <div className={styles.container}>
-          {/* 视频播放器区域 */}
-          <div className={styles.playerWrapper}>
-            <iframe
-              src={video.embedUrl}
-              className={styles.player}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={video.title}
-            />
+          {/* 顶部标题栏 */}
+          <div className={styles.header}>
+            <div className={styles.headerLeft}>
+              {(video.authorAvatarUrl || video.channel?.thumbnailUrl) && (
+                <img
+                  src={video.authorAvatarUrl || video.channel?.thumbnailUrl || ''}
+                  alt={video.author || video.channel?.channelName || 'Channel'}
+                  className={styles.headerAvatar}
+                />
+              )}
+              <div className={styles.headerInfo}>
+                <span className={styles.channelName}>
+                  {video.author || video.channel?.channelName || 'Unknown Channel'}
+                </span>
+              </div>
+            </div>
+            <div className={styles.headerActions}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={styles.iconButton}
+                onClick={() => setIsBookmarked(!isBookmarked)}
+              >
+                <Bookmark className={isBookmarked ? styles.bookmarked : ''} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={styles.iconButton}
+              >
+                <Settings />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={styles.iconButton}
+                onClick={() => onOpenChange(false)}
+              >
+                <X />
+              </Button>
+            </div>
           </div>
 
-          {/* 滚动内容区域 */}
-          <div className={styles.content}>
-            {/* 视频标题和统计 */}
+          {/* 可滚动区域 */}
+          <div className={styles.scrollableArea}>
+            {/* 视频播放器区域 */}
+            <div className={styles.playerWrapper}>
+              <iframe
+                src={getOptimizedEmbedUrl(video.embedUrl)}
+                className={styles.player}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={video.title}
+                frameBorder="0"
+              />
+            </div>
+
+            {/* 内容区域 */}
+            <div className={styles.content}>
+            {/* 视频标题和标签 */}
             <div className={styles.titleSection}>
+              <div className={styles.categoryBadge}>
+                <Badge variant="secondary">{video.category}</Badge>
+              </div>
               <h2 className={styles.title}>{video.title}</h2>
               <div className={styles.stats}>
                 <span className={styles.statItem}>
                   <Eye className={styles.icon} />
-                  {formatNumber(video.viewCount)} 观看
+                  {formatNumber(video.viewCount)} views
                 </span>
                 <span className={styles.dot}>•</span>
                 <span>{formatRelativeTime(video.publishedAt)}</span>
               </div>
             </div>
 
+
             {/* 频道信息 */}
             {video.channel && (
-              <div className={styles.channelSection}>
+              <div className={styles.channelCard}>
                 <div className={styles.channelInfo}>
                   <div className={styles.channelAvatar}>
                     {video.channel.thumbnailUrl ? (
@@ -64,50 +141,40 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                     )}
                   </div>
                   <div className={styles.channelDetails}>
-                    <div className={styles.channelName}>{video.channel.channelName}</div>
+                    <div className={styles.channelNameText}>{video.channel.channelName}</div>
                     <div className={styles.subscriberCount}>
-                      {formatNumber(video.channel.subscriberCount || 0)} 订阅者
+                      {formatNumber(video.channel.subscriberCount || 0)} subscribers
                     </div>
                   </div>
                 </div>
-                <Button variant="default" size="sm">
-                  订阅
+                <Button variant="default" size="sm" className={styles.subscribeButton}>
+                  Subscribe
                 </Button>
               </div>
             )}
 
             {/* AI 摘要（如果有） */}
             {video.aiSummary && (
-              <div className={styles.section}>
+              <div className={styles.contentCard}>
                 <div className={styles.sectionHeader}>
-                  <h3 className={styles.sectionTitle}>AI 摘要</h3>
-                  <Badge variant="secondary">AI 生成</Badge>
+                  <h3 className={styles.sectionTitle}>AI Summary</h3>
+                  <Badge variant="secondary" className={styles.aiBadge}>AI Generated</Badge>
                 </div>
                 <div className={styles.sectionContent}>
-                  <p className={isSummaryExpanded ? '' : styles.clampedText}>
+                  <p className={styles.expandedText}>
                     {video.aiSummary}
                   </p>
-                  {video.aiSummary.length > 200 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
-                      className={styles.expandButton}
-                    >
-                      {isSummaryExpanded ? '收起' : '展开'}
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
 
             {/* 视频描述 */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>描述</h3>
+            <div className={styles.contentCard}>
+              <h3 className={styles.sectionTitle}>Description</h3>
               <div className={styles.sectionContent}>
-                <p className={isDescriptionExpanded ? '' : styles.clampedText}>
+                <div className={isDescriptionExpanded ? styles.expandedText : styles.clampedText}>
                   {video.description}
-                </p>
+                </div>
                 {video.description.length > 200 && (
                   <Button
                     variant="ghost"
@@ -115,33 +182,20 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                     onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
                     className={styles.expandButton}
                   >
-                    {isDescriptionExpanded ? '收起' : '展开'}
+                    {isDescriptionExpanded ? 'Show less' : 'Show more'}
                   </Button>
                 )}
               </div>
             </div>
 
-            {/* 分类和标签 */}
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>分类与标签</h3>
-              <div className={styles.tagsContainer}>
-                <Badge variant="default">{video.category}</Badge>
-                {video.tags.slice(0, 5).map((tag, index) => (
-                  <Badge key={index} variant="outline">
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
             {/* 字幕/文字稿（如果有） */}
             {video.transcript && (
-              <div className={styles.section}>
-                <h3 className={styles.sectionTitle}>字幕文字稿</h3>
+              <div className={styles.contentCard}>
+                <h3 className={styles.sectionTitle}>Transcript</h3>
                 <div className={styles.sectionContent}>
-                  <p className={isTranscriptExpanded ? styles.transcriptText : styles.clampedTranscript}>
+                  <div className={isTranscriptExpanded ? styles.transcriptText : styles.clampedTranscript}>
                     {video.transcript}
-                  </p>
+                  </div>
                   {video.transcript.length > 300 && (
                     <Button
                       variant="ghost"
@@ -149,29 +203,13 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                       onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
                       className={styles.expandButton}
                     >
-                      {isTranscriptExpanded ? '收起' : '展开完整字幕'}
+                      {isTranscriptExpanded ? 'Show less' : 'Show full transcript'}
                     </Button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* 额外信息 */}
-            <div className={styles.section}>
-              <div className={styles.metaInfo}>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>时长:</span>
-                  <span className={styles.metaValue}>{video.durationFormatted}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>发布时间:</span>
-                  <span className={styles.metaValue}>{formatRelativeTime(video.publishedAt)}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>相关性评分:</span>
-                  <span className={styles.metaValue}>{video.relevanceScore}/100</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
