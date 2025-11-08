@@ -1,53 +1,36 @@
-import type { Video, NewsItem } from '../types/api';
+import type { Video, NewsItem, DailyNewsResponse, DailyVideosResponse } from '../types/api';
+import { apiClient } from '../utils/apiClient';
 
-const API_BASE_URL = '/api';
-const REQUEST_TIMEOUT = 30000; // 30 seconds
-
-// Fetch 包装函数，添加超时和错误处理
-async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-
+/**
+ * Get daily YouTube video recommendations
+ * Public endpoint - no authentication required
+ * Uses the /youtube/videos/daily/recommendations endpoint to get today's recommended videos
+ */
+export const getYouTubeVideos = async (limit: number = 2): Promise<Video[]> => {
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response;
+    const response = await apiClient.get<DailyVideosResponse>(
+      `/youtube/videos/daily/recommendations?limit=${limit}`
+    );
+    return response.data.videos;
   } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Request timeout');
-    }
-    throw error;
-  }
-}
-
-export const getYouTubeVideos = async (): Promise<Video[]> => {
-  try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/youtube/videos`);
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching YouTube videos:', error);
+    console.error('Error fetching daily video recommendations:', error);
     throw error;
   }
 };
 
+/**
+ * Get daily news recommendations
+ * Public endpoint - no authentication required
+ * Uses the /news/daily/recommendations endpoint to get today's news
+ */
 export const getTopUnpushedNews = async (limit: number = 5): Promise<NewsItem[]> => {
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/news/top-unpushed?limit=${limit}`);
-    const data = await response.json();
+    const data = await apiClient.get<DailyNewsResponse>(
+      `/news/daily/recommendations?limit=${limit}`
+    );
     return data.data.items;
   } catch (error) {
-    console.error('Error fetching top unpushed news:', error);
+    console.error('Error fetching daily news recommendations:', error);
     throw error;
   }
 };

@@ -1,0 +1,86 @@
+.videosPage {
+  .pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .pageTitle {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: #1a1a1a;
+  }
+
+  .pageDescription {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .filters {
+    margin-bottom: 20px;
+  }
+
+  .searchInput {
+    max-width: 400px;
+  }
+
+  .tableContainer {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e5e5;
+    overflow: hidden;
+  }
+
+  .thumbnail {
+    width: 120px;
+    height: 68px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .titleCell {
+    .titleLink {
+      color: #1a1a1a;
+      text-decoration: none;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 4px;
+
+      &:hover {
+        color: #667eea;
+        text-decoration: underline;
+      }
+    }
+
+    .author {
+      font-size: 12px;
+      color: #999;
+    }
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+
+    .paginationInfo {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .paginationButtons {
+      display: flex;
+      gap: 8px;
+    }
+  }
+}

@@ -1,18 +1,37 @@
 .filters {
-  display: flex;
-  gap: 10px;
+  display: inline-flex;
+  gap: 4px;
   margin: 20px 0;
+  padding: 4px;
+  background-color: #f5f5f5;
+  border-radius: 20px;
+  border: 1px solid #e5e5e5;
+  height: 40px;
+  align-items: center;
 
   button {
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid #ddd;
-    background-color: #fff;
+    padding: 6px 20px;
+    border-radius: 16px;
+    border: none;
+    background-color: transparent;
+    color: #000;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    height: 32px;
+    display: flex;
+    align-items: center;
+
+    &:hover:not(.active) {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
 
     &.active {
       background-color: #000;
       color: #fff;
+      font-weight: 500;
     }
   }
 }
