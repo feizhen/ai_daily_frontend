@@ -86,14 +86,21 @@
 }
 
 .iconButton {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  color: #4b5563;
-  background: #f3f4f6;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  color: #4b5563 !important;
+  background: #f3f4f6 !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s !important;
 
   &:hover {
-    background: #e5e7eb;
+    background: #e5e7eb !important;
+  }
+
+  &:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   svg {
@@ -103,7 +110,30 @@
 }
 
 .bookmarked {
-  fill: currentColor;
+  fill: none !important;
+  stroke-width: 2 !important;
+}
+
+.bookmarkedButton {
+  background: transparent !important;
+  border: 1px solid #f97316 !important;
+  color: #f97316 !important;
+
+  svg {
+    fill: none !important;
+  }
+
+  &:hover {
+    background: #fff7ed !important;
+    border-color: #ea580c !important;
+    color: #ea580c !important;
+    transform: scale(1.05) !important;
+  }
+
+  &:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 
 .scrollableArea {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Masonry from 'react-masonry-css';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import styles from './Recommendation.module.less';
 import VideoCard from './VideoCard.tsx';
@@ -7,15 +8,18 @@ import VideoPlayerDialog from './VideoPlayerDialog';
 import { getYouTubeVideos, getTopUnpushedNews } from '../../../api/home';
 import { getUserFavorites } from '../../../api/favorites';
 import { useFavorites } from '../../../contexts/FavoritesContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import type { Video, NewsItem } from '../../../types/api';
 import type { FilterType } from '../index';
 
 interface RecommendationProps {
   activeFilter: FilterType;
   isFavoritesMode: boolean;
+  selectedDate: Date;
 }
 
-const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavoritesMode }) => {
+const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavoritesMode, selectedDate }) => {
+  const { t } = useLanguage();
   const [videos, setVideos] = useState<Video[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [favorites, setFavorites] = useState<(Video | NewsItem)[]>([]);
@@ -33,17 +37,17 @@ const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavorit
   };
 
   useEffect(() => {
-    // 防止 StrictMode 导致的重复请求
-    if (hasFetched.current) return;
-    hasFetched.current = true;
-
     const fetchData = async () => {
       try {
         setLoading(true);
+        // 将日期格式化为 YYYY-MM-DD
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        console.log('Fetching data for date:', dateStr);
+
         // 并行请求 videos 和 news
         const [videoData, newsData] = await Promise.all([
-          getYouTubeVideos(),
-          getTopUnpushedNews()
+          getYouTubeVideos(2, dateStr),
+          getTopUnpushedNews(5, dateStr)
         ]);
         console.log('Video data:', videoData);
         console.log('News data:', newsData);
@@ -60,7 +64,7 @@ const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavorit
     };
 
     fetchData();
-  }, []);
+  }, [selectedDate]); // 当日期变化时重新获取数据
 
   // 当进入收藏模式时获取收藏内容
   useEffect(() => {
@@ -162,19 +166,19 @@ const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavorit
   return (
     <div className={styles.recommendation}>
       <div className={styles.header}>
-        <h2>{isFavoritesMode ? 'My Favorites' : "Today's recommend"}</h2>
-        <p>showing {items.length} summarys</p>
+        <h2>{isFavoritesMode ? t('recommendation.myFavorites') : t('recommendation.todayRecommend')}</h2>
+        <p>{t('recommendation.showing')} {items.length} {t('recommendation.items')}</p>
         {/* 刷新按钮暂时屏蔽 */}
         {/* <Button variant="refresh" className={styles.refreshButton}>↻</Button> */}
       </div>
       {loading ? (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
-          <p>{isFavoritesMode ? 'Loading favorites...' : 'Loading recommendations...'}</p>
+          <p>{isFavoritesMode ? t('recommendation.loadingFavorites') : t('recommendation.loadingRecommendations')}</p>
         </div>
       ) : items.length === 0 ? (
         <div className={styles.loadingContainer}>
-          <p>{isFavoritesMode ? 'No favorites yet' : 'No items found'}</p>
+          <p>{isFavoritesMode ? t('recommendation.noFavorites') : t('recommendation.noItems')}</p>
         </div>
       ) : (
         <Masonry

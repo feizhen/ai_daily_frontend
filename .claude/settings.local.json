@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nperf: 优化 tooltip 显示速度\n\n- 将 tooltip 延迟时间从默认的 700ms 减少到 200ms\n- 提升用户体验，减少等待时间\n- 应用于 FavoriteButton 和 VideoPlayerDialog\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

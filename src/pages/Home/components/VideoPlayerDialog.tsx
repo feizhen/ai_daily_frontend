@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Bookmark, Settings, X } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Eye, Bookmark, X } from 'lucide-react';
 import type { Video } from '../../../types/api';
 import { formatNumber, formatRelativeTime } from '../../../lib/formatters';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useFavorites } from '../../../contexts/FavoritesContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import { useToast } from '../../../hooks/use-toast';
 import styles from './VideoPlayerDialog.module.less';
 
 interface VideoPlayerDialogProps {
@@ -14,11 +24,102 @@ interface VideoPlayerDialogProps {
 }
 
 const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOpenChange }) => {
+  const { user, isAuthenticated } = useAuth();
+  const {
+    isFavorited,
+    addToFavorites,
+    removeFromFavorites,
+    optimisticAdd,
+    optimisticRemove,
+    rollbackAdd,
+    rollbackRemove
+  } = useFavorites();
+  const { language, t } = useLanguage();
+  const { toast } = useToast();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tooltipEnabled, setTooltipEnabled] = useState(false);
+
+  // 延迟启用 tooltip，避免打开弹窗时立即触发
+  useEffect(() => {
+    if (open) {
+      setTooltipEnabled(false);
+      const timer = setTimeout(() => {
+        setTooltipEnabled(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setTooltipEnabled(false);
+    }
+  }, [open]);
 
   if (!video) return null;
+
+  // Check if user is a regular user (not admin)
+  const isRegularUser = isAuthenticated && user?.role !== 'admin';
+  const favorited = isFavorited(video.id);
+
+  // Get AI summary based on language
+  const aiSummary = language === 'zh' && video.aiSummaryZh ? video.aiSummaryZh : video.aiSummary;
+
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (loading) return;
+
+    const wasFavorited = favorited;
+    let savedFavoriteId: string | undefined;
+
+    setLoading(true);
+
+    try {
+      if (wasFavorited) {
+        // 乐观更新：立即移除收藏样式
+        savedFavoriteId = optimisticRemove(video.id);
+
+        // 调用 API
+        await removeFromFavorites(video.id);
+
+        // 成功后显示提示
+        toast({
+          title: t('favorites.removedFromFavorites'),
+          description: t('favorites.videoRemoved'),
+        });
+      } else {
+        // 乐观更新：立即显示收藏样式
+        optimisticAdd(video.id, 'temp');
+
+        // 调用 API
+        await addToFavorites('video', video.id);
+
+        // 成功后显示提示
+        toast({
+          title: t('favorites.addedToFavorites'),
+          description: t('favorites.videoAdded'),
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+
+      // 失败时回滚
+      if (wasFavorited && savedFavoriteId) {
+        rollbackRemove(video.id, savedFavoriteId);
+      } else {
+        rollbackAdd(video.id);
+      }
+
+      // 显示错误提示
+      toast({
+        variant: "destructive",
+        title: t('favorites.operationFailed'),
+        description: t('favorites.failedToUpdate'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 优化 YouTube 嵌入 URL，使用官方 API 参数移除多余信息
   const getOptimizedEmbedUrl = (url: string) => {
@@ -68,21 +169,26 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
               </div>
             </div>
             <div className={styles.headerActions}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={styles.iconButton}
-                onClick={() => setIsBookmarked(!isBookmarked)}
-              >
-                <Bookmark className={isBookmarked ? styles.bookmarked : ''} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={styles.iconButton}
-              >
-                <Settings />
-              </Button>
+              {isRegularUser && (
+                <TooltipProvider delayDuration={200} skipDelayDuration={0}>
+                  <Tooltip open={tooltipEnabled ? undefined : false}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`${styles.iconButton} ${favorited ? styles.bookmarkedButton : ''}`}
+                        onClick={handleFavoriteClick}
+                        disabled={loading}
+                      >
+                        <Bookmark className={favorited ? styles.bookmarked : ''} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{favorited ? t('favorites.removeFromFavorites') : t('favorites.addToFavorites')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -119,7 +225,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
               <div className={styles.stats}>
                 <span className={styles.statItem}>
                   <Eye className={styles.icon} />
-                  {formatNumber(video.viewCount)} views
+                  {formatNumber(video.viewCount)} {t('video.views')}
                 </span>
                 <span className={styles.dot}>•</span>
                 <span>{formatRelativeTime(video.publishedAt)}</span>
@@ -143,26 +249,26 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                   <div className={styles.channelDetails}>
                     <div className={styles.channelNameText}>{video.channel.channelName}</div>
                     <div className={styles.subscriberCount}>
-                      {formatNumber(video.channel.subscriberCount || 0)} subscribers
+                      {formatNumber(video.channel.subscriberCount || 0)} {t('videoPlayer.subscribers')}
                     </div>
                   </div>
                 </div>
                 <Button variant="default" size="sm" className={styles.subscribeButton}>
-                  Subscribe
+                  {t('videoPlayer.subscribe')}
                 </Button>
               </div>
             )}
 
             {/* AI 摘要（如果有） */}
-            {video.aiSummary && (
+            {aiSummary && (
               <div className={styles.contentCard}>
                 <div className={styles.sectionHeader}>
-                  <h3 className={styles.sectionTitle}>AI Summary</h3>
-                  <Badge variant="secondary" className={styles.aiBadge}>AI Generated</Badge>
+                  <h3 className={styles.sectionTitle}>{t('videoPlayer.aiSummary')}</h3>
+                  <Badge variant="secondary" className={styles.aiBadge}>{t('videoPlayer.aiGenerated')}</Badge>
                 </div>
                 <div className={styles.sectionContent}>
                   <p className={styles.expandedText}>
-                    {video.aiSummary}
+                    {aiSummary}
                   </p>
                 </div>
               </div>
@@ -170,7 +276,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
 
             {/* 视频描述 */}
             <div className={styles.contentCard}>
-              <h3 className={styles.sectionTitle}>Description</h3>
+              <h3 className={styles.sectionTitle}>{t('videoPlayer.description')}</h3>
               <div className={styles.sectionContent}>
                 <div className={isDescriptionExpanded ? styles.expandedText : styles.clampedText}>
                   {video.description}
@@ -182,7 +288,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                     onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
                     className={styles.expandButton}
                   >
-                    {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                    {isDescriptionExpanded ? t('video.showLess') : t('video.showMore')}
                   </Button>
                 )}
               </div>
@@ -191,7 +297,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
             {/* 字幕/文字稿（如果有） */}
             {video.transcript && (
               <div className={styles.contentCard}>
-                <h3 className={styles.sectionTitle}>Transcript</h3>
+                <h3 className={styles.sectionTitle}>{t('videoPlayer.transcript')}</h3>
                 <div className={styles.sectionContent}>
                   <div className={isTranscriptExpanded ? styles.transcriptText : styles.clampedTranscript}>
                     {video.transcript}
@@ -203,7 +309,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                       onClick={() => setIsTranscriptExpanded(!isTranscriptExpanded)}
                       className={styles.expandButton}
                     >
-                      {isTranscriptExpanded ? 'Show less' : 'Show full transcript'}
+                      {isTranscriptExpanded ? t('video.showLess') : t('videoPlayer.showFullTranscript')}
                     </Button>
                   )}
                 </div>

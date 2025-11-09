@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage, type Language } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,6 +14,7 @@ import {
 const UserMenu: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, login, register, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
@@ -143,18 +145,45 @@ const UserMenu: React.FC = () => {
                     className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-3"
                   >
                     <span className="text-xl">📹</span>
-                    <span className="font-medium">Video Management</span>
+                    <span className="font-medium">{t('userMenu.videoManagement')}</span>
                   </button>
                   <button
                     onClick={() => navigate('/admin/news')}
                     className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-3"
                   >
                     <span className="text-xl">📰</span>
-                    <span className="font-medium">News Management</span>
+                    <span className="font-medium">{t('userMenu.newsManagement')}</span>
                   </button>
                 </div>
               </>
             )}
+
+            {/* Language Selector */}
+            <div className="mb-5">
+              <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    language === 'en'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('language.en')}
+                </button>
+                <button
+                  onClick={() => setLanguage('zh')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    language === 'zh'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('language.zh')}
+                </button>
+              </div>
+            </div>
 
             {/* Sign Out Button */}
             <Button
@@ -162,7 +191,7 @@ const UserMenu: React.FC = () => {
               className="w-full bg-black text-white hover:bg-black/90 rounded-xl h-10 font-medium"
               disabled={logoutLoading}
             >
-              {logoutLoading ? 'Signing out...' : 'Sign Out'}
+              {logoutLoading ? t('userMenu.signingOut') : t('userMenu.signOut')}
             </Button>
           </div>
         </PopoverContent>
@@ -185,10 +214,10 @@ const UserMenu: React.FC = () => {
         <div className="p-2">
           <div className="text-center mb-5">
             <h3 className="text-xl font-semibold mb-2">
-              {isRegisterMode ? 'Sign Up' : 'Sign In'}
+              {isRegisterMode ? t('userMenu.signUp') : t('userMenu.signIn')}
             </h3>
             <p className="text-sm text-gray-500">
-              {isRegisterMode ? 'Create an account to access admin features' : 'Sign in to access admin features'}
+              {isRegisterMode ? t('userMenu.signUpPrompt') : t('userMenu.signInPrompt')}
             </p>
           </div>
 
@@ -201,11 +230,11 @@ const UserMenu: React.FC = () => {
           <form onSubmit={isRegisterMode ? handleRegister : handleLogin}>
             {isRegisterMode && (
               <div className="mb-5">
-                <Label htmlFor="nickname" className="text-sm font-medium mb-2 block">Nickname (Optional)</Label>
+                <Label htmlFor="nickname" className="text-sm font-medium mb-2 block">{t('userMenu.nickname')}</Label>
                 <Input
                   id="nickname"
                   type="text"
-                  placeholder="Your nickname"
+                  placeholder={t('userMenu.nicknamePlaceholder')}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   disabled={loading}
@@ -215,11 +244,11 @@ const UserMenu: React.FC = () => {
             )}
 
             <div className="mb-5">
-              <Label htmlFor="email" className="text-sm font-medium mb-2 block">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium mb-2 block">{t('userMenu.email')}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder={t('userMenu.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -229,11 +258,11 @@ const UserMenu: React.FC = () => {
             </div>
 
             <div className="mb-5">
-              <Label htmlFor="password" className="text-sm font-medium mb-2 block">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium mb-2 block">{t('userMenu.password')}</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder={t('userMenu.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -242,7 +271,7 @@ const UserMenu: React.FC = () => {
               />
               {isRegisterMode && (
                 <p className="text-xs text-gray-500 mt-2">
-                  At least 8 characters with uppercase, lowercase and numbers
+                  {t('userMenu.passwordHint')}
                 </p>
               )}
             </div>
@@ -253,21 +282,48 @@ const UserMenu: React.FC = () => {
               disabled={loading}
             >
               {loading
-                ? (isRegisterMode ? 'Signing up...' : 'Signing in...')
-                : (isRegisterMode ? 'Sign Up' : 'Sign In')
+                ? (isRegisterMode ? t('userMenu.signingUp') : t('userMenu.signingIn'))
+                : (isRegisterMode ? t('userMenu.signUp') : t('userMenu.signIn'))
               }
             </Button>
           </form>
 
-          <div className="text-center">
+          <div className="text-center mb-5">
             <button
               type="button"
               onClick={toggleMode}
               className="text-sm text-black/60 hover:text-black/80 hover:underline"
               disabled={loading}
             >
-              {isRegisterMode ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'}
+              {isRegisterMode ? t('userMenu.alreadyHaveAccount') : t('userMenu.noAccount')}
             </button>
+          </div>
+
+          {/* Language Selector for unauthenticated users */}
+          <div className="pt-5 border-t border-gray-200">
+            <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  language === 'en'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {t('language.en')}
+              </button>
+              <button
+                onClick={() => setLanguage('zh')}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  language === 'zh'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {t('language.zh')}
+              </button>
+            </div>
           </div>
         </div>
       </PopoverContent>
