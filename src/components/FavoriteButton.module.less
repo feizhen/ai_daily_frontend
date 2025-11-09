@@ -1,0 +1,38 @@
+.favoriteButton {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  color: #4b5563 !important;
+  background: #f3f4f6 !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+  border: 2px solid transparent !important;
+  transition: all 0.2s ease !important;
+
+  &:hover {
+    background: #e5e7eb !important;
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+    transition: all 0.2s ease;
+  }
+
+  // 收藏状态的样式
+  &.favorited {
+    background: #fffbf0 !important;
+    border-color: #f97316 !important;
+    color: #f97316 !important;
+
+    &:hover {
+      background: #fff7e6 !important;
+      border-color: #ea580c !important;
+      color: #ea580c !important;
+    }
+  }
+}
+
+.bookmarked {
+  fill: currentColor;
+}

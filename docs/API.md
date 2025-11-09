@@ -1,9 +1,9 @@
 # AI Daily Backend API 文档
 
-**版本**: 3.1.0
+**版本**: 3.3.1
 **本地地址**: `http://localhost:3000/api`
 **生产环境**: `https://aidailybackend-production.up.railway.app/api`
-**总接口数**: 67 个
+**总接口数**: 78 个
 
 ---
 
@@ -21,6 +21,11 @@
   - [视频管理](#视频管理)
   - [视频摘要（AI 功能）](#视频摘要ai-功能)
   - [用户偏好](#用户偏好)
+- [Product Hunt 接口](#product-hunt-接口)
+  - [数据同步](#数据同步)
+  - [产品查询](#产品查询)
+  - [主题相关](#主题相关)
+  - [统计信息](#统计信息)
 - [数据模型](#数据模型)
 - [错误码](#错误码)
 
@@ -35,6 +40,7 @@ AI Daily Backend 提供以下 RESTful API 服务：
 - 📧 Gmail 集成用于邮件处理
 - 📺 AI 相关频道的 YouTube 视频聚合
 - 🎯 基于用户偏好的个性化视频推荐
+- 🚀 Product Hunt 热门产品聚合和推荐
 - ⚡ 基于 Redis 的缓存提升性能
 - 🔐 JWT 双令牌认证系统
 - 👥 用户角色权限管理（admin/visitor）
@@ -560,37 +566,57 @@ Authorization: Bearer <access_token>
 
 批量检查多个内容是否已被收藏（用于前端显示收藏图标状态）。
 
-**端点**: `GET /favorites/check`
+**端点**: `POST /favorites/check`
 
 **认证**: 需要（Bearer Token）
 
-**查询参数**:
+**请求体**:
+```json
+{
+  "favoriteType": "video",
+  "favoriteIds": ["uuid1", "uuid2", "uuid3"]
+}
+```
+
+**参数说明**:
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `favoriteType` | string | 是 | 收藏类型：`video` 或 `news` |
-| `favoriteIds` | string | 是 | 逗号分隔的 ID 列表（如：`id1,id2,id3`）|
+| `favoriteIds` | string[] | 是 | UUID 数组（最多 100 个）|
 
 **示例请求**:
 ```bash
-GET /favorites/check?favoriteType=video&favoriteIds=uuid1,uuid2,uuid3
+POST /favorites/check
 Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "favoriteType": "video",
+  "favoriteIds": [
+    "f78651b3-3fb1-4b2a-974b-ec3f7c2a7934",
+    "418ef47e-3bd6-4286-8116-1857b9fbf77a",
+    "f984f8eb-104b-4029-81df-b349c19a8317"
+  ]
+}
 ```
 
 **示例响应**:
 ```json
 {
-  "success": true,
-  "data": {
-    "uuid1": true,
-    "uuid2": false,
-    "uuid3": true
-  }
+  "f78651b3-3fb1-4b2a-974b-ec3f7c2a7934": true,
+  "418ef47e-3bd6-4286-8116-1857b9fbf77a": true,
+  "f984f8eb-104b-4029-81df-b349c19a8317": false
 }
 ```
 
 **响应说明**: 返回一个对象，键为内容 ID，值为布尔值（`true` 表示已收藏，`false` 表示未收藏）。
 
-**文件位置**: `src/favorites/favorites.controller.ts:81`
+**验证规则**:
+- `favoriteIds` 必须是数组
+- 每个 ID 必须是有效的 UUID
+- 最多同时检查 100 个收藏状态
+
+**文件位置**: `src/favorites/favorites.controller.ts:82`
 
 ---
 
@@ -1960,6 +1986,595 @@ Check YouTube service health and API quota status.
 
 ---
 
+## Product Hunt 接口
+
+Product Hunt 模块提供热门产品的聚合、筛选和每日推荐功能。支持按主题、投票数、日期等多种方式查询产品。
+
+### 数据同步
+
+#### 48. 同步今日热门产品
+
+手动触发同步今日 Product Hunt 热门产品。
+
+**端点**: `POST /producthunt/sync/today`
+
+**请求体** (可选):
+```json
+{
+  "limit": 20
+}
+```
+
+**参数说明**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 20 | 抓取数量 |
+
+**示例请求**:
+```bash
+POST /producthunt/sync/today
+Content-Type: application/json
+
+{
+  "limit": 30
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "message": "成功抓取 30 个今日热门产品",
+  "count": 30
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:38`
+
+---
+
+#### 49. 同步 AI 相关产品
+
+手动触发同步 AI 相关的产品（支持多个主题）。
+
+**端点**: `POST /producthunt/sync/ai`
+
+**请求体** (可选):
+```json
+{
+  "daysAgo": 7,
+  "limit": 30
+}
+```
+
+**参数说明**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `daysAgo` | number | 7 | 过去 N 天 |
+| `limit` | number | 30 | 每个主题的抓取数量 |
+
+**示例请求**:
+```bash
+POST /producthunt/sync/ai
+Content-Type: application/json
+
+{
+  "daysAgo": 7,
+  "limit": 20
+}
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "message": "成功抓取 37 个 AI 相关产品",
+  "count": 37
+}
+```
+
+**AI 主题包括**:
+- artificial-intelligence
+- machine-learning
+- developer-tools
+- productivity
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:60`
+
+---
+
+### 产品查询
+
+#### 50. 获取今日热门产品
+
+获取今天发布的热门产品（按投票数排序）。
+
+**端点**: `GET /producthunt/today`
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 20 | 返回数量 |
+
+**示例请求**:
+```bash
+GET /producthunt/today?limit=10
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 10,
+  "data": [
+    {
+      "id": "uuid",
+      "productId": "ph-product-id",
+      "name": "AI Code Assistant",
+      "slug": "ai-code-assistant",
+      "tagline": "Your intelligent coding companion",
+      "description": "Full product description...",
+      "url": "https://www.producthunt.com/posts/...",
+      "website": "https://example.com",
+      "votesCount": 850,
+      "commentsCount": 42,
+      "reviewsRating": 4.8,
+      "createdAt": "2025-01-07T00:00:00Z",
+      "featuredAt": "2025-01-07T08:00:00Z",
+      "fetchedAt": "2025-01-07T08:30:00Z",
+      "thumbnailUrl": "https://...",
+      "media": [
+        {
+          "type": "image",
+          "url": "https://...",
+          "videoUrl": null
+        }
+      ],
+      "topics": [
+        {
+          "id": "topic-uuid",
+          "name": "Artificial Intelligence",
+          "slug": "artificial-intelligence",
+          "description": "...",
+          "postsCount": 5420
+        }
+      ],
+      "makers": [
+        {
+          "id": "maker-uuid",
+          "name": "John Doe",
+          "username": "johndoe",
+          "headline": "Building AI tools",
+          "profileImage": "https://...",
+          "url": "https://www.producthunt.com/@johndoe"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:84`
+
+---
+
+#### 51. 获取热门产品列表
+
+获取热门产品，支持多种排序和时间范围筛选。
+
+**端点**: `GET /producthunt/top`
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 20 | 返回数量 |
+| `daysAgo` | number | - | 过去 N 天（不指定则查询所有）|
+| `sortBy` | string | votes | 排序方式：`votes` 或 `latest` |
+
+**示例请求**:
+```bash
+# 获取所有时间最热门的 20 个产品
+GET /producthunt/top?limit=20&sortBy=votes
+
+# 获取最近 7 天最热门的产品
+GET /producthunt/top?limit=10&daysAgo=7&sortBy=votes
+
+# 获取最新产品
+GET /producthunt/top?limit=15&sortBy=latest
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 20,
+  "data": [/* 产品数组 */]
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:106`
+
+---
+
+#### 52. 搜索产品
+
+根据关键词、主题、投票数等条件搜索产品。
+
+**端点**: `GET /producthunt/search`
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `keyword` | string | - | 搜索关键词（在名称、标语、描述中搜索）|
+| `limit` | number | 20 | 返回数量 |
+| `sortBy` | string | votes | 排序：`votes`、`latest` 或 `rating` |
+| `topicSlugs` | string | - | 主题 slug 列表（逗号分隔）|
+| `minVotes` | number | - | 最低投票数 |
+
+**示例请求**:
+```bash
+# 搜索 AI 相关产品
+GET /producthunt/search?keyword=ai&limit=20
+
+# 搜索高票数的 AI 工具
+GET /producthunt/search?keyword=ai&minVotes=100&sortBy=votes
+
+# 按主题筛选
+GET /producthunt/search?topicSlugs=artificial-intelligence,machine-learning&limit=15
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 15,
+  "data": [/* 产品数组 */]
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:135`
+
+---
+
+#### 53. 根据 ID 获取产品详情
+
+通过产品 UUID 获取单个产品的完整信息。
+
+**端点**: `GET /producthunt/posts/:id`
+
+**路径参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 产品 UUID |
+
+**示例请求**:
+```bash
+GET /producthunt/posts/7ae61a78-07da-4720-8fe5-69b701ef8bec
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7ae61a78-07da-4720-8fe5-69b701ef8bec",
+    "name": "AI Code Assistant",
+    /* 完整产品信息 */
+  }
+}
+```
+
+**错误响应**:
+```json
+{
+  "success": false,
+  "message": "产品不存在"
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:160`
+
+---
+
+#### 54. 根据 slug 获取产品详情
+
+通过产品 slug 获取单个产品的完整信息。
+
+**端点**: `GET /producthunt/slug/:slug`
+
+**路径参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `slug` | string | 产品 slug |
+
+**示例请求**:
+```bash
+GET /producthunt/slug/ai-code-assistant
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "slug": "ai-code-assistant",
+    "name": "AI Code Assistant",
+    /* 完整产品信息 */
+  }
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:189`
+
+---
+
+#### 55. 获取每日推荐产品
+
+获取指定日期或最近抓取的产品推荐（所有用户获取相同的产品）。
+
+**端点**: `GET /producthunt/daily/recommendations`
+
+**查询逻辑**:
+- 基于 `fetchedAt` 字段按日期筛选
+- 支持指定具体日期或查询最近 7 天
+- 内置兜底逻辑：如果当天无数据，自动回溯前 7 天
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `date` | string | - | 日期（格式：YYYY-MM-DD，不指定则查询最近 7 天）|
+| `limit` | number | 20 | 返回数量 |
+| `sortBy` | string | votes | 排序方式：`votes` 或 `latest` |
+
+**示例请求**:
+```bash
+# 获取最近 7 天的推荐（默认）
+GET /producthunt/daily/recommendations
+
+# 获取指定日期的产品
+GET /producthunt/daily/recommendations?date=2025-01-07
+
+# 获取最新产品（按时间排序）
+GET /producthunt/daily/recommendations?sortBy=latest&limit=15
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "posts": [/* 产品数组 */],
+    "total": 20,
+    "requestedDate": "recent",
+    "actualDate": "2025-01-07",
+    "isFallback": false
+  }
+}
+```
+
+**兜底逻辑响应** (无当天数据时):
+```json
+{
+  "success": true,
+  "data": {
+    "posts": [/* 产品数组 */],
+    "total": 15,
+    "requestedDate": "recent",
+    "actualDate": "2025-01-06",
+    "isFallback": true
+  }
+}
+```
+
+**错误响应** (日期格式错误):
+```json
+{
+  "success": false,
+  "message": "日期格式错误，请使用 YYYY-MM-DD 格式"
+}
+```
+
+**使用场景**:
+- **每日推送**：获取今天抓取的产品用于推送
+- **历史浏览**：查看过去某天的产品
+- **首页展示**：展示最新的热门产品
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:336`
+
+---
+
+### 主题相关
+
+#### 56. 获取所有主题
+
+获取 Product Hunt 所有主题列表（按产品数量排序）。
+
+**端点**: `GET /producthunt/topics`
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 50 | 返回数量 |
+
+**示例请求**:
+```bash
+GET /producthunt/topics?limit=30
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 30,
+  "data": [
+    {
+      "id": "topic-uuid",
+      "topicId": "ph-topic-id",
+      "name": "Artificial Intelligence",
+      "slug": "artificial-intelligence",
+      "description": "AI and machine learning products",
+      "url": "https://www.producthunt.com/topics/artificial-intelligence",
+      "followersCount": 125000,
+      "postsCount": 5420
+    }
+  ]
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:220`
+
+---
+
+#### 57. 获取 AI 相关主题
+
+获取预定义的 AI 相关主题列表。
+
+**端点**: `GET /producthunt/topics/ai`
+
+**示例请求**:
+```bash
+GET /producthunt/topics/ai
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 4,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Artificial Intelligence",
+      "slug": "artificial-intelligence",
+      "postsCount": 5420
+    },
+    {
+      "id": "uuid",
+      "name": "Machine Learning",
+      "slug": "machine-learning",
+      "postsCount": 3210
+    }
+  ]
+}
+```
+
+**AI 主题包括**:
+- artificial-intelligence
+- machine-learning
+- ai
+- deep-learning
+- automation
+- developer-tools
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:242`
+
+---
+
+#### 58. 根据主题获取产品
+
+获取指定主题下的产品列表。
+
+**端点**: `GET /producthunt/topics/:slug/posts`
+
+**路径参数**:
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `slug` | string | 主题 slug |
+
+**查询参数**:
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `limit` | number | 20 | 返回数量 |
+| `sortBy` | string | votes | 排序方式：`votes` 或 `latest` |
+
+**示例请求**:
+```bash
+# 获取 AI 主题下的热门产品
+GET /producthunt/topics/artificial-intelligence/posts?limit=20&sortBy=votes
+
+# 获取 AI 主题下的最新产品
+GET /producthunt/topics/artificial-intelligence/posts?sortBy=latest
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "count": 20,
+  "data": [/* 产品数组 */]
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:261`
+
+---
+
+### 统计信息
+
+#### 59. 获取统计信息
+
+获取 Product Hunt 数据的统计信息。
+
+**端点**: `GET /producthunt/stats`
+
+**示例请求**:
+```bash
+GET /producthunt/stats
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "totalPosts": 1250,
+    "todayPosts": 37,
+    "totalTopics": 145,
+    "avgVotes": 235,
+    "topTopic": "Artificial Intelligence",
+    "lastFetchTime": "2025-01-07T08:30:00Z",
+    "apiStatus": "active"
+  }
+}
+```
+
+**统计字段说明**:
+- `totalPosts`: 数据库中的总产品数
+- `todayPosts`: 今天抓取的产品数
+- `totalTopics`: 主题总数
+- `avgVotes`: 平均投票数
+- `topTopic`: 产品数最多的主题
+- `lastFetchTime`: 最后一次抓取时间
+- `apiStatus`: API 连接状态
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:293`
+
+---
+
+#### 60. 健康检查
+
+检查 Product Hunt 服务状态。
+
+**端点**: `GET /producthunt/health`
+
+**示例请求**:
+```bash
+GET /producthunt/health
+```
+
+**示例响应**:
+```json
+{
+  "success": true,
+  "message": "Producthunt service is running",
+  "timestamp": "2025-01-07T10:30:00Z"
+}
+```
+
+**文件位置**: `src/producthunt/producthunt.controller.ts:431`
+
+---
+
 ## Data Models
 
 ### NewsItem
@@ -2135,6 +2750,90 @@ Check YouTube service health and API quota status.
 
 ---
 
+### ProducthuntPost
+
+```typescript
+{
+  id: string;                          // UUID (primary key)
+  productId: string;                   // Product Hunt Product ID (unique)
+  name: string;                        // Product name
+  slug: string;                        // Product slug (unique)
+  tagline: string;                     // Short tagline
+  description?: string;                // Full description
+  url: string;                         // Product Hunt URL
+  website?: string;                    // Product website URL
+  votesCount: number;                  // Upvote count
+  commentsCount: number;               // Comment count
+  reviewsRating?: number;              // Average rating (0-5)
+  createdAt: Date;                     // Product creation date
+  featuredAt?: Date;                   // Featured date on Product Hunt
+  fetchedAt: Date;                     // When we fetched this product
+  userId?: string;                     // Creator user ID
+  thumbnailUrl?: string;               // Thumbnail image URL
+  updatedAt: Date;                     // Last update timestamp
+  media: ProducthuntMedia[];           // Related media (images/videos)
+  topics: ProducthuntTopic[];          // Related topics (many-to-many)
+  makers: ProducthuntMaker[];          // Product makers (many-to-many)
+}
+```
+
+---
+
+### ProducthuntTopic
+
+```typescript
+{
+  id: string;                          // UUID (primary key)
+  topicId: string;                     // Product Hunt Topic ID (unique)
+  name: string;                        // Topic name
+  slug: string;                        // Topic slug (unique)
+  description?: string;                // Topic description
+  url?: string;                        // Product Hunt topic URL
+  followersCount?: number;             // Follower count
+  postsCount?: number;                 // Number of posts in this topic
+  createdAt: Date;                     // Creation timestamp
+  updatedAt: Date;                     // Update timestamp
+  posts: ProducthuntPost[];            // Related posts (many-to-many)
+}
+```
+
+---
+
+### ProducthuntMaker
+
+```typescript
+{
+  id: string;                          // UUID (primary key)
+  makerId: string;                     // Product Hunt Maker ID (unique)
+  name: string;                        // Maker name
+  username?: string;                   // Product Hunt username
+  headline?: string;                   // Maker headline/bio
+  profileImage?: string;               // Profile image URL
+  url?: string;                        // Product Hunt profile URL
+  createdAt: Date;                     // Creation timestamp
+  updatedAt: Date;                     // Update timestamp
+  posts: ProducthuntPost[];            // Related posts (many-to-many)
+}
+```
+
+---
+
+### ProducthuntMedia
+
+```typescript
+{
+  id: string;                          // UUID (primary key)
+  postId: string;                      // Foreign key to ProducthuntPost
+  type: string;                        // Media type (image/video)
+  url: string;                         // Image URL
+  videoUrl?: string;                   // Video URL (if type is video)
+  createdAt: Date;                     // Creation timestamp
+  post: ProducthuntPost;               // Related post
+}
+```
+
+---
+
 ## Error Codes
 
 | HTTP Status | Description |
@@ -2216,25 +2915,26 @@ For issues or questions:
 | **Favorites（收藏）** | 4 | 添加/删除/查询收藏、批量检查收藏状态 |
 | **News（新闻）** | 12 | 新闻列表、同步、排名、标记操作、每日推荐 |
 | **YouTube（视频）** | 32 | 频道管理、视频管理、摘要生成、用户偏好 |
+| **Product Hunt（产品）** | 13 | 产品同步、热门产品、主题筛选、每日推荐 |
 | **Gmail（邮件）** | 9 | OAuth 认证、邮件查询、搜索 |
 | **App（主应用）** | 1 | 欢迎页面 |
-| **总计** | **65** | - |
+| **总计** | **78** | - |
 
 ### 按 HTTP 方法分类
 
 | 方法 | 数量 | 百分比 |
 |------|------|--------|
-| GET | 33 | 49.3% |
-| POST | 27 | 40.3% |
-| PATCH | 5 | 7.5% |
-| DELETE | 2 | 3.0% |
+| GET | 44 | 56.4% |
+| POST | 29 | 37.2% |
+| PATCH | 5 | 6.4% |
+| DELETE | 2 | 2.6% |
 
 ### 按认证要求分类
 
 | 类型 | 数量 | 百分比 |
 |------|------|--------|
-| 公开接口 | 59 | 88.1% |
-| 需要认证 | 8 | 11.9% |
+| 公开接口 | 72 | 92.3% |
+| 需要认证 | 8 | 10.3% |
 
 ### 新功能亮点
 
@@ -2243,9 +2943,10 @@ For issues or questions:
 - 👤 **用户系统**：完整的认证、授权和个人资料管理
 - ⚡ **Redis 缓存**：关键接口实现缓存，响应速度提升 90%
 - 🌍 **国际化支持**：新闻和视频摘要全面支持中英双语
+- 🚀 **Product Hunt 集成**：每日热门产品聚合、多主题筛选、智能推荐、兜底逻辑
 
 ---
 
-**Last Updated**: 2025-11-08
-**API Version**: 3.2.0
-**Total Endpoints**: 65
+**Last Updated**: 2025-01-09
+**API Version**: 3.3.1
+**Total Endpoints**: 78
