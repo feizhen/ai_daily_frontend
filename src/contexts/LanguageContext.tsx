@@ -77,6 +77,21 @@ const translations: Record<Language, Record<string, string>> = {
     'videoPlayer.subscribe': 'Subscribe',
     'videoPlayer.showFullTranscript': 'Show full transcript',
 
+    // Filters
+    'filter.all': 'All',
+    'filter.video': 'video',
+    'filter.news': 'news',
+
+    // Recommendation
+    'recommendation.todayRecommend': "Today's recommend",
+    'recommendation.myFavorites': 'My Favorites',
+    'recommendation.showing': 'showing',
+    'recommendation.items': 'items',
+    'recommendation.loadingFavorites': 'Loading favorites...',
+    'recommendation.loadingRecommendations': 'Loading recommendations...',
+    'recommendation.noFavorites': 'No favorites yet',
+    'recommendation.noItems': 'No items found',
+
     // Common
     'common.loading': 'Loading...',
     'common.error': 'Error',
@@ -144,6 +159,21 @@ const translations: Record<Language, Record<string, string>> = {
     'videoPlayer.subscribers': '位订阅者',
     'videoPlayer.subscribe': '订阅',
     'videoPlayer.showFullTranscript': '查看完整文稿',
+
+    // Filters
+    'filter.all': '全部',
+    'filter.video': '视频',
+    'filter.news': '新闻',
+
+    // Recommendation
+    'recommendation.todayRecommend': '今日推荐',
+    'recommendation.myFavorites': '我的收藏',
+    'recommendation.showing': '显示',
+    'recommendation.items': '项',
+    'recommendation.loadingFavorites': '加载收藏中...',
+    'recommendation.loadingRecommendations': '加载推荐中...',
+    'recommendation.noFavorites': '暂无收藏',
+    'recommendation.noItems': '暂无内容',
 
     // Common
     'common.loading': '加载中...',

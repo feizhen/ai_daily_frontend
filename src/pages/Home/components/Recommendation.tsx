@@ -7,6 +7,7 @@ import VideoPlayerDialog from './VideoPlayerDialog';
 import { getYouTubeVideos, getTopUnpushedNews } from '../../../api/home';
 import { getUserFavorites } from '../../../api/favorites';
 import { useFavorites } from '../../../contexts/FavoritesContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import type { Video, NewsItem } from '../../../types/api';
 import type { FilterType } from '../index';
 
@@ -16,6 +17,7 @@ interface RecommendationProps {
 }
 
 const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavoritesMode }) => {
+  const { t } = useLanguage();
   const [videos, setVideos] = useState<Video[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [favorites, setFavorites] = useState<(Video | NewsItem)[]>([]);
@@ -162,19 +164,19 @@ const Recommendation: React.FC<RecommendationProps> = ({ activeFilter, isFavorit
   return (
     <div className={styles.recommendation}>
       <div className={styles.header}>
-        <h2>{isFavoritesMode ? 'My Favorites' : "Today's recommend"}</h2>
-        <p>showing {items.length} summarys</p>
+        <h2>{isFavoritesMode ? t('recommendation.myFavorites') : t('recommendation.todayRecommend')}</h2>
+        <p>{t('recommendation.showing')} {items.length} {t('recommendation.items')}</p>
         {/* 刷新按钮暂时屏蔽 */}
         {/* <Button variant="refresh" className={styles.refreshButton}>↻</Button> */}
       </div>
       {loading ? (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
-          <p>{isFavoritesMode ? 'Loading favorites...' : 'Loading recommendations...'}</p>
+          <p>{isFavoritesMode ? t('recommendation.loadingFavorites') : t('recommendation.loadingRecommendations')}</p>
         </div>
       ) : items.length === 0 ? (
         <div className={styles.loadingContainer}>
-          <p>{isFavoritesMode ? 'No favorites yet' : 'No items found'}</p>
+          <p>{isFavoritesMode ? t('recommendation.noFavorites') : t('recommendation.noItems')}</p>
         </div>
       ) : (
         <Masonry
