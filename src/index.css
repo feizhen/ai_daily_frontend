@@ -155,5 +155,16 @@ a:hover {
     transform: translate(-50%, 100%);
   }
 }
+
+/* Popover 快速动画 */
+@layer utilities {
+  .animate-in {
+    animation-duration: 150ms;
+  }
+
+  .animate-out {
+    animation-duration: 150ms;
+  }
+}
 }
 
