@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Bookmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../hooks/use-toast';
 import { type FavoriteType } from '../api/favorites';
 import styles from './FavoriteButton.module.less';
@@ -25,6 +26,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
     rollbackAdd,
     rollbackRemove,
   } = useFavorites();
+  const { t } = useLanguage();
   const { toast } = useToast();
 
   // Check if user is a regular user (not admin)
@@ -53,8 +55,8 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
 
         // 成功后显示提示
         toast({
-          title: "Removed from favorites",
-          description: itemType === 'video' ? "Video removed from your favorites" : "News removed from your favorites",
+          title: t('favorites.removedFromFavorites'),
+          description: itemType === 'video' ? t('favorites.videoRemoved') : t('favorites.newsRemoved'),
         });
       } else {
         // 乐观更新：立即显示收藏样式
@@ -65,8 +67,8 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
 
         // 成功后显示提示
         toast({
-          title: "Added to favorites",
-          description: itemType === 'video' ? "Video saved to your favorites" : "News saved to your favorites",
+          title: t('favorites.addedToFavorites'),
+          description: itemType === 'video' ? t('favorites.videoAdded') : t('favorites.newsAdded'),
         });
       }
     } catch (error) {
@@ -82,8 +84,8 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
       // 显示错误提示
       toast({
         variant: "destructive",
-        title: "Operation failed",
-        description: "Failed to update favorites. Please try again later.",
+        title: t('favorites.operationFailed'),
+        description: t('favorites.failedToUpdate'),
       });
     } finally {
       setLoading(false);
@@ -102,7 +104,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
       className={`${styles.favoriteButton} ${favorited ? styles.favorited : ''} ${className}`}
       onClick={handleClick}
       disabled={loading}
-      title={favorited ? 'Remove from favorites' : 'Add to favorites'}
+      title={favorited ? t('favorites.removeFromFavorites') : t('favorites.addToFavorites')}
     >
       <Bookmark className={favorited ? styles.bookmarked : ''} />
     </Button>

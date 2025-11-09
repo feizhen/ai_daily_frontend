@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from './VideoCard.module.less';
 import type { Video, NewsItem } from '../../../types/api';
 import { formatRelativeTime } from '../../../lib/formatters';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import FavoriteButton from '../../../components/FavoriteButton';
 
 interface VideoCardProps {
@@ -10,6 +11,7 @@ interface VideoCardProps {
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
+  const { language, t } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isCardHovered, setIsCardHovered] = useState(false);
   const isVideo = (item: Video | NewsItem): item is Video => 'videoId' in item;
@@ -84,37 +86,37 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
       {/* 内容区域 */}
       <div className={styles.newsInfo}>
         {/* Tag */}
-        <span className={styles.newsCategory}>{item.category.en}</span>
+        <span className={styles.newsCategory}>{item.category[language]}</span>
 
         {/* Title */}
         <a href={item.url} target="_blank" rel="noopener noreferrer" className={styles.newsTitle}>
-          {item.emoji} {item.title.en}
+          {item.emoji} {item.title[language]}
         </a>
 
         <div className={styles.newsContent}>
           <div className={styles.newsSection}>
-            <h4 className={styles.newsSectionTitle}>Summary:</h4>
-            <p className={styles.newsSummary}>{item.summary.en}</p>
+            <h4 className={styles.newsSectionTitle}>{t('news.summary')}</h4>
+            <p className={styles.newsSummary}>{item.summary[language]}</p>
           </div>
         </div>
 
         {/* 可折叠内容 */}
         <div className={styles.collapsibleContent}>
-          {item.details.en.length > 0 && (
+          {item.details[language].length > 0 && (
             <div className={styles.newsSection}>
-              <h4 className={styles.newsSectionTitle}>The details:</h4>
+              <h4 className={styles.newsSectionTitle}>{t('news.details')}</h4>
               <ul className={styles.newsDetailsList}>
-                {item.details.en.map((detail, index) => (
+                {item.details[language].map((detail, index) => (
                   <li key={index} className={styles.newsDetailsItem}>{detail}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {item.significance.en && (
+          {item.significance[language] && (
             <div className={styles.newsSection}>
-              <h4 className={styles.newsSectionTitle}>Why it matters:</h4>
-              <p className={styles.newsSignificance}>{item.significance.en}</p>
+              <h4 className={styles.newsSectionTitle}>{t('news.significance')}</h4>
+              <p className={styles.newsSignificance}>{item.significance[language]}</p>
             </div>
           )}
         </div>
@@ -122,7 +124,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
         {/* Show more 按钮和收藏按钮 */}
         <div className={styles.newsFooter}>
           <button className={styles.showMoreButton} onClick={toggleExpand}>
-            {isExpanded ? 'Show less' : 'Show more'}
+            {isExpanded ? t('video.showLess') : t('video.showMore')}
           </button>
           <FavoriteButton itemId={item.id} itemType="news" />
         </div>
