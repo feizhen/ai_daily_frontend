@@ -65,8 +65,8 @@ const translations: Record<Language, Record<string, string>> = {
     'favorites.newsRemoved': 'News removed from your favorites',
     'favorites.operationFailed': 'Operation failed',
     'favorites.failedToUpdate': 'Failed to update favorites. Please try again later.',
-    'favorites.addToFavorites': 'Add to favorites',
-    'favorites.removeFromFavorites': 'Remove from favorites',
+    'favorites.addToFavorites': 'Favorite',
+    'favorites.removeFromFavorites': 'Unfavorite',
 
     // Video Player Dialog
     'videoPlayer.description': 'Description',
@@ -148,8 +148,8 @@ const translations: Record<Language, Record<string, string>> = {
     'favorites.newsRemoved': '新闻已从您的收藏中移除',
     'favorites.operationFailed': '操作失败',
     'favorites.failedToUpdate': '更新收藏失败，请稍后重试',
-    'favorites.addToFavorites': '添加到收藏',
-    'favorites.removeFromFavorites': '从收藏中移除',
+    'favorites.addToFavorites': '收藏',
+    'favorites.removeFromFavorites': '取消收藏',
 
     // Video Player Dialog
     'videoPlayer.description': '视频描述',
