@@ -18,6 +18,7 @@ export interface User {
   avatar: string | null;
   status: string;
   emailVerified: boolean;
+  role: string;
   createdAt: string;
 }
 

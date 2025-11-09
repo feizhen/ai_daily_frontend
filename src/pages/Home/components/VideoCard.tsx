@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styles from './VideoCard.module.less';
 import type { Video, NewsItem } from '../../../types/api';
 import { formatRelativeTime } from '../../../lib/formatters';
+import FavoriteButton from '../../../components/FavoriteButton';
 
 interface VideoCardProps {
   item: Video | NewsItem;
@@ -63,6 +64,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
                 <span className={styles.time}>{formatRelativeTime(item.publishedAt)}</span>
               </div>
             </div>
+            <FavoriteButton itemId={item.id} itemType="video" />
           </div>
         </div>
       </div>
@@ -117,10 +119,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
           )}
         </div>
 
-        {/* Show more 按钮 */}
-        <button className={styles.showMoreButton} onClick={toggleExpand}>
-          {isExpanded ? 'Show less' : 'Show more'}
-        </button>
+        {/* Show more 按钮和收藏按钮 */}
+        <div className={styles.newsFooter}>
+          <button className={styles.showMoreButton} onClick={toggleExpand}>
+            {isExpanded ? 'Show less' : 'Show more'}
+          </button>
+          <FavoriteButton itemId={item.id} itemType="news" />
+        </div>
       </div>
     </div>
   );

@@ -157,7 +157,22 @@ export async function apiFetch<T = any>(
     }
 
     // Parse and return response
-    return await response.json();
+    // Handle 204 No Content or empty responses
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return { success: true } as T;
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return { success: true } as T;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      console.warn('Failed to parse response as JSON:', text);
+      return { success: true, data: text } as T;
+    }
   } catch (error) {
     clearTimeout(timeoutId);
 

@@ -1,14 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as authApi from '../api/auth';
 import type { User, LoginCredentials, RegisterData } from '../api/auth';
+import { tokenRefreshManager } from '../utils/tokenRefreshManager';
 
 interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<User>;
+  register: (data: RegisterData) => Promise<User>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
 }
@@ -34,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedToken && storedUser) {
           setAccessToken(storedToken);
           setUser(JSON.parse(storedUser));
+
+          // 启动自动刷新管理器
+          tokenRefreshManager.start(refreshAccessToken);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -44,6 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
+
+    // 组件卸载时停止刷新管理器
+    return () => {
+      tokenRefreshManager.stop();
+    };
   }, []);
 
   // Setup token refresh on 401 responses
@@ -67,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials): Promise<User> => {
     try {
       const response = await authApi.login(credentials);
       const { user, accessToken, refreshToken } = response.data;
@@ -79,13 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAccessToken(accessToken);
       setUser(user);
+
+      // 启动自动刷新管理器
+      tokenRefreshManager.start(refreshAccessToken);
+
+      return user;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   };
 
-  const register = async (data: RegisterData) => {
+  const register = async (data: RegisterData): Promise<User> => {
     try {
       const response = await authApi.register(data);
       const { user, accessToken, refreshToken } = response.data;
@@ -97,6 +111,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAccessToken(accessToken);
       setUser(user);
+
+      // 启动自动刷新管理器
+      tokenRefreshManager.start(refreshAccessToken);
+
+      return user;
     } catch (error) {
       console.error('Register error:', error);
       throw error;
@@ -114,6 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // 停止自动刷新管理器
+      tokenRefreshManager.stop();
       clearAuth();
     }
   };

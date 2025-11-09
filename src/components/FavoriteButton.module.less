@@ -1,0 +1,53 @@
+.favoriteButton {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  color: #6b7280 !important;
+  background: #f9fafb !important;
+  padding: 0 !important;
+  flex-shrink: 0;
+  border: 1px solid transparent !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer;
+
+  &:hover:not(.favorited) {
+    background: #f3f4f6 !important;
+    color: #4b5563 !important;
+    border-color: #e5e7eb !important;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    transition: all 0.3s ease;
+  }
+
+  // 已收藏状态的样式 - 边框高亮，图标空心
+  &.favorited {
+    background: transparent !important;
+    border-width: 1px !important;
+    border-color: #f97316 !important;
+    color: #f97316 !important;
+
+    svg {
+      fill: none;
+    }
+
+    &:hover {
+      background: #fff7ed !important;
+      border-color: #ea580c !important;
+      color: #ea580c !important;
+      transform: scale(1.05);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.bookmarked {
+  fill: none;
+  stroke-width: 2;
+}

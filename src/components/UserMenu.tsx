@@ -9,14 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from './ui/popover';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 const UserMenu: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +18,7 @@ const UserMenu: React.FC = () => {
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
@@ -35,14 +28,18 @@ const UserMenu: React.FC = () => {
     setLoading(true);
 
     try {
-      await login({ email, password });
+      const loggedInUser = await login({ email, password });
       setEmail('');
       setPassword('');
       setNickname('');
       setPopoverOpen(false);
-      navigate('/admin/videos');
+
+      // Only redirect to admin page if user has admin role
+      if (loggedInUser.role === 'admin') {
+        navigate('/admin/videos');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '登录失败，请重试');
+      setError(err instanceof Error ? err.message : 'Login failed, please try again');
     } finally {
       setLoading(false);
     }
@@ -54,22 +51,33 @@ const UserMenu: React.FC = () => {
     setLoading(true);
 
     try {
-      await register({ email, password, nickname: nickname || undefined });
+      const registeredUser = await register({ email, password, nickname: nickname || undefined });
       setEmail('');
       setPassword('');
       setNickname('');
       setPopoverOpen(false);
-      navigate('/admin/videos');
+
+      // Only redirect to admin page if user has admin role
+      if (registeredUser.role === 'admin') {
+        navigate('/admin/videos');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '注册失败，请重试');
+      setError(err instanceof Error ? err.message : 'Registration failed, please try again');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    setLogoutLoading(true);
+    try {
+      await logout();
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setLogoutLoading(false);
+    }
   };
 
   const toggleMode = () => {
@@ -90,9 +98,11 @@ const UserMenu: React.FC = () => {
 
   // 已登录：显示用户菜单
   if (isAuthenticated) {
+    const isAdmin = user?.role === 'admin';
+
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <Button
             variant="ghost"
             className="relative h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 hover:opacity-90 transition-opacity"
@@ -101,31 +111,62 @@ const UserMenu: React.FC = () => {
               {getUserInitials()}
             </span>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">
-                {user?.nickname || '用户'}
-              </p>
-              <p className="text-xs leading-none text-muted-foreground">
+        </PopoverTrigger>
+        <PopoverContent className="w-80" align="end">
+          <div className="p-2">
+            {/* User Info Section */}
+            <div className="text-center mb-5">
+              <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <span className="text-white font-semibold text-2xl">
+                  {getUserInitials()}
+                </span>
+              </div>
+              <h3 className="text-lg font-semibold mb-1">
+                {user?.nickname || 'User'}
+              </h3>
+              <p className="text-sm text-gray-500 mb-2">
                 {user?.email}
               </p>
+              {isAdmin && (
+                <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                  Admin
+                </span>
+              )}
             </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate('/admin/videos')}>
-            📹 视频管理
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/admin/news')}>
-            📰 新闻管理
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-            🚪 退出登录
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+
+            {/* Admin Links - Only show for admin users */}
+            {isAdmin && (
+              <>
+                <div className="mb-5">
+                  <button
+                    onClick={() => navigate('/admin/videos')}
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-3"
+                  >
+                    <span className="text-xl">📹</span>
+                    <span className="font-medium">Video Management</span>
+                  </button>
+                  <button
+                    onClick={() => navigate('/admin/news')}
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-3"
+                  >
+                    <span className="text-xl">📰</span>
+                    <span className="font-medium">News Management</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Sign Out Button */}
+            <Button
+              onClick={handleLogout}
+              className="w-full bg-black text-white hover:bg-black/90 rounded-xl h-10 font-medium"
+              disabled={logoutLoading}
+            >
+              {logoutLoading ? 'Signing out...' : 'Sign Out'}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 
@@ -141,39 +182,40 @@ const UserMenu: React.FC = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
-        <div className="space-y-4">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold">
-              {isRegisterMode ? '注册账户' : '登录账户'}
+        <div className="p-2">
+          <div className="text-center mb-5">
+            <h3 className="text-xl font-semibold mb-2">
+              {isRegisterMode ? 'Sign Up' : 'Sign In'}
             </h3>
             <p className="text-sm text-gray-500">
-              {isRegisterMode ? '创建新账户以访问管理功能' : '登录以访问管理功能'}
+              {isRegisterMode ? 'Create an account to access admin features' : 'Sign in to access admin features'}
             </p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-5">
               {error}
             </div>
           )}
 
-          <form onSubmit={isRegisterMode ? handleRegister : handleLogin} className="space-y-4">
+          <form onSubmit={isRegisterMode ? handleRegister : handleLogin}>
             {isRegisterMode && (
-              <div className="space-y-2">
-                <Label htmlFor="nickname">昵称（可选）</Label>
+              <div className="mb-5">
+                <Label htmlFor="nickname" className="text-sm font-medium mb-2 block">Nickname (Optional)</Label>
                 <Input
                   id="nickname"
                   type="text"
-                  placeholder="你的昵称"
+                  placeholder="Your nickname"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   disabled={loading}
+                  className="rounded-xl h-10 px-4"
                 />
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
+            <div className="mb-5">
+              <Label htmlFor="email" className="text-sm font-medium mb-2 block">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -182,11 +224,12 @@ const UserMenu: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                className="rounded-xl h-10 px-4"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
+            <div className="mb-5">
+              <Label htmlFor="password" className="text-sm font-medium mb-2 block">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -195,18 +238,23 @@ const UserMenu: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                className="rounded-xl h-10 px-4"
               />
               {isRegisterMode && (
-                <p className="text-xs text-gray-500">
-                  至少 8 个字符，包含大小写字母和数字
+                <p className="text-xs text-gray-500 mt-2">
+                  At least 8 characters with uppercase, lowercase and numbers
                 </p>
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-black text-white hover:bg-black/90 rounded-xl h-10 font-medium mb-5"
+              disabled={loading}
+            >
               {loading
-                ? (isRegisterMode ? '注册中...' : '登录中...')
-                : (isRegisterMode ? '注册' : '登录')
+                ? (isRegisterMode ? 'Signing up...' : 'Signing in...')
+                : (isRegisterMode ? 'Sign Up' : 'Sign In')
               }
             </Button>
           </form>
@@ -215,10 +263,10 @@ const UserMenu: React.FC = () => {
             <button
               type="button"
               onClick={toggleMode}
-              className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
+              className="text-sm text-black/60 hover:text-black/80 hover:underline"
               disabled={loading}
             >
-              {isRegisterMode ? '已有账户？立即登录' : '没有账户？立即注册'}
+              {isRegisterMode ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'}
             </button>
           </div>
         </div>
