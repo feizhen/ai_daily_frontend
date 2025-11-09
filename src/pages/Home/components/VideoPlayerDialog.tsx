@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,20 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tooltipEnabled, setTooltipEnabled] = useState(false);
+
+  // 延迟启用 tooltip，避免打开弹窗时立即触发
+  useEffect(() => {
+    if (open) {
+      setTooltipEnabled(false);
+      const timer = setTimeout(() => {
+        setTooltipEnabled(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setTooltipEnabled(false);
+    }
+  }, [open]);
 
   if (!video) return null;
 
@@ -156,8 +170,8 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
             </div>
             <div className={styles.headerActions}>
               {isRegularUser && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
+                <TooltipProvider delayDuration={200} skipDelayDuration={0}>
+                  <Tooltip open={tooltipEnabled ? undefined : false}>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
