@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from './ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 import { Bookmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
@@ -98,16 +104,24 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className={`${styles.favoriteButton} ${favorited ? styles.favorited : ''} ${className}`}
-      onClick={handleClick}
-      disabled={loading}
-      title={favorited ? t('favorites.removeFromFavorites') : t('favorites.addToFavorites')}
-    >
-      <Bookmark className={favorited ? styles.bookmarked : ''} />
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`${styles.favoriteButton} ${favorited ? styles.favorited : ''} ${className}`}
+            onClick={handleClick}
+            disabled={loading}
+          >
+            <Bookmark className={favorited ? styles.bookmarked : ''} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{favorited ? t('favorites.removeFromFavorites') : t('favorites.addToFavorites')}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
