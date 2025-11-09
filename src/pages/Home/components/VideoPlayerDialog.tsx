@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Bookmark, Settings, X } from 'lucide-react';
+import { Eye, Bookmark, X } from 'lucide-react';
 import type { Video } from '../../../types/api';
 import { formatNumber, formatRelativeTime } from '../../../lib/formatters';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useFavorites } from '../../../contexts/FavoritesContext';
+import { useToast } from '../../../hooks/use-toast';
 import styles from './VideoPlayerDialog.module.less';
 
 interface VideoPlayerDialogProps {
@@ -14,11 +17,84 @@ interface VideoPlayerDialogProps {
 }
 
 const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOpenChange }) => {
+  const { user, isAuthenticated } = useAuth();
+  const {
+    isFavorited,
+    addToFavorites,
+    removeFromFavorites,
+    optimisticAdd,
+    optimisticRemove,
+    rollbackAdd,
+    rollbackRemove
+  } = useFavorites();
+  const { toast } = useToast();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   if (!video) return null;
+
+  // Check if user is a regular user (not admin)
+  const isRegularUser = isAuthenticated && user?.role !== 'admin';
+  const favorited = isFavorited(video.id);
+
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (loading) return;
+
+    const wasFavorited = favorited;
+    let savedFavoriteId: string | undefined;
+
+    setLoading(true);
+
+    try {
+      if (wasFavorited) {
+        // 乐观更新：立即移除收藏样式
+        savedFavoriteId = optimisticRemove(video.id);
+
+        // 调用 API
+        await removeFromFavorites(video.id);
+
+        // 成功后显示提示
+        toast({
+          title: "Removed from favorites",
+          description: "Video removed from your favorites",
+        });
+      } else {
+        // 乐观更新：立即显示收藏样式
+        optimisticAdd(video.id, 'temp');
+
+        // 调用 API
+        await addToFavorites('video', video.id);
+
+        // 成功后显示提示
+        toast({
+          title: "Added to favorites",
+          description: "Video saved to your favorites",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+
+      // 失败时回滚
+      if (wasFavorited && savedFavoriteId) {
+        rollbackRemove(video.id, savedFavoriteId);
+      } else {
+        rollbackAdd(video.id);
+      }
+
+      // 显示错误提示
+      toast({
+        variant: "destructive",
+        title: "Operation failed",
+        description: "Failed to update favorites. Please try again later.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 优化 YouTube 嵌入 URL，使用官方 API 参数移除多余信息
   const getOptimizedEmbedUrl = (url: string) => {
@@ -68,21 +144,18 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
               </div>
             </div>
             <div className={styles.headerActions}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={styles.iconButton}
-                onClick={() => setIsBookmarked(!isBookmarked)}
-              >
-                <Bookmark className={isBookmarked ? styles.bookmarked : ''} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={styles.iconButton}
-              >
-                <Settings />
-              </Button>
+              {isRegularUser && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`${styles.iconButton} ${favorited ? styles.bookmarkedButton : ''}`}
+                  onClick={handleFavoriteClick}
+                  disabled={loading}
+                  title={favorited ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <Bookmark className={favorited ? styles.bookmarked : ''} />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
