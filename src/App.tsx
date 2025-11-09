@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { FavoritesProvider } from "./contexts/FavoritesContext";
+import { Toaster } from "./components/ui/toaster";
 import Home from "./pages/Home";
 import AdminLayout from "./pages/Admin/Layout";
 import VideosPage from "./pages/Admin/Videos";
@@ -28,6 +29,7 @@ function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <Toaster />
         </BrowserRouter>
       </FavoritesProvider>
     </AuthProvider>

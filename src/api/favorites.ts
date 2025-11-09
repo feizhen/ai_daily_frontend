@@ -4,10 +4,14 @@ export type FavoriteType = 'video' | 'news';
 
 export interface FavoriteItem {
   id: string;
-  userId: string;
+  userId?: string;
   favoriteType: FavoriteType;
   favoriteId: string;
   createdAt: string;
+  content?: {
+    id: string;
+    [key: string]: any;
+  };
 }
 
 export interface AddFavoriteRequest {

@@ -21,7 +21,6 @@ const Filters: React.FC<FiltersProps> = ({ activeFilter, onFilterChange }) => {
           {filter}
         </button>
       ))}
-      {/* Tools tab temporarily hidden */}
     </div>
   );
 };

@@ -1,19 +1,35 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Bookmark } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useFavorites } from '../../../contexts/FavoritesContext';
 import styles from './Toolbar.module.less';
 
-const Toolbar: React.FC = () => {
+interface ToolbarProps {
+  isFavoritesMode: boolean;
+  onFavoritesToggle: () => void;
+}
+
+const Toolbar: React.FC<ToolbarProps> = ({ isFavoritesMode, onFavoritesToggle }) => {
+  const { user, isAuthenticated } = useAuth();
+  const { favorites } = useFavorites();
+
+  // 只对普通用户显示收藏按钮
+  const isRegularUser = isAuthenticated && user?.role !== 'admin';
+  const favoritesCount = favorites.size;
+
+  if (!isRegularUser) {
+    return <div className={styles.toolbar} />;
+  }
+
   return (
     <div className={styles.toolbar}>
-      {/* 日期选择器和计数暂时屏蔽 */}
-      {/* <div className={styles.datePicker}>
-        <Button variant="datePicker">&lt;</Button>
-        <span>2025/11/02</span>
-        <Button variant="datePicker">&gt;</Button>
-      </div>
-      <div className={styles.itemCount}>
-        <span>15</span>
-      </div> */}
+      <button
+        onClick={onFavoritesToggle}
+        className={`${styles.favoritesButton} ${isFavoritesMode ? styles.active : ''}`}
+      >
+        <Bookmark className={styles.icon} />
+        <span className={styles.count}>{favoritesCount}</span>
+      </button>
     </div>
   );
 };
