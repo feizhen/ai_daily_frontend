@@ -156,7 +156,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
             </div>
             <div className={styles.headerActions}>
               {isRegularUser && (
-                <TooltipProvider>
+                <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button

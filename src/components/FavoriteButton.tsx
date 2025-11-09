@@ -104,7 +104,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({ itemId, itemType, class
   }
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
