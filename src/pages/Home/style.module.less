@@ -26,14 +26,13 @@
 
       // 移动端布局：日期选择器和收藏按钮在小屏幕时显示在下方
       @media (max-width: 768px) {
-        // 移除移动端的额外间距，因为换行已经通过 gap 处理
-        margin-bottom: 8px;
+        gap: 8px;
+        margin-bottom: 12px;
 
         .rightSection {
           width: 100%;
           justify-content: flex-start;
           order: 2;
-          margin-bottom: 12px;
         }
       }
     }
