@@ -160,30 +160,28 @@ const UserMenu: React.FC = () => {
 
             {/* Language Selector */}
             <div className="mb-5">
-              <div className="px-4 py-2">
-                <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setLanguage('en')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      language === 'en'
-                        ? 'bg-black text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {t('language.en')}
-                  </button>
-                  <button
-                    onClick={() => setLanguage('zh')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      language === 'zh'
-                        ? 'bg-black text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {t('language.zh')}
-                  </button>
-                </div>
+              <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    language === 'en'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('language.en')}
+                </button>
+                <button
+                  onClick={() => setLanguage('zh')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    language === 'zh'
+                      ? 'bg-black text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('language.zh')}
+                </button>
               </div>
             </div>
 
@@ -303,30 +301,28 @@ const UserMenu: React.FC = () => {
 
           {/* Language Selector for unauthenticated users */}
           <div className="pt-5 border-t border-gray-200">
-            <div className="px-4 py-2">
-              <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setLanguage('en')}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    language === 'en'
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {t('language.en')}
-                </button>
-                <button
-                  onClick={() => setLanguage('zh')}
-                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    language === 'zh'
-                      ? 'bg-black text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {t('language.zh')}
-                </button>
-              </div>
+            <p className="text-xs font-medium text-gray-500 mb-2">{t('userMenu.language')}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  language === 'en'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {t('language.en')}
+              </button>
+              <button
+                onClick={() => setLanguage('zh')}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  language === 'zh'
+                    ? 'bg-black text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {t('language.zh')}
+              </button>
             </div>
           </div>
         </div>
