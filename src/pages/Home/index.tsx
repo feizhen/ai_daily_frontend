@@ -4,12 +4,14 @@ import Header from './components/Header.tsx';
 import Filters from './components/Filters.tsx';
 import Toolbar from './components/Toolbar.tsx';
 import Recommendation from './components/Recommendation.tsx';
+import { DatePicker } from '../../components/DatePicker';
 
 export type FilterType = 'All' | 'video' | 'news' | 'favorites';
 
 const Home: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('All');
   const [isFavoritesMode, setIsFavoritesMode] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const handleFilterChange = (filter: FilterType) => {
     // 在收藏模式下，点击 All/video/news 只是过滤收藏类型，不退出收藏模式
@@ -35,12 +37,22 @@ const Home: React.FC = () => {
       <div className={styles.mainContent}>
         <div className={styles.topBar}>
           <Filters activeFilter={activeFilter} onFilterChange={handleFilterChange} />
-          <Toolbar
-            isFavoritesMode={isFavoritesMode}
-            onFavoritesToggle={handleFavoritesToggle}
-          />
+          <div className={styles.rightSection}>
+            <DatePicker
+              date={selectedDate}
+              onDateChange={(date) => setSelectedDate(date || new Date())}
+            />
+            <Toolbar
+              isFavoritesMode={isFavoritesMode}
+              onFavoritesToggle={handleFavoritesToggle}
+            />
+          </div>
         </div>
-        <Recommendation activeFilter={activeFilter} isFavoritesMode={isFavoritesMode} />
+        <Recommendation
+          activeFilter={activeFilter}
+          isFavoritesMode={isFavoritesMode}
+          selectedDate={selectedDate}
+        />
       </div>
     </div>
   );
