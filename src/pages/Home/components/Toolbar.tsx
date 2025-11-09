@@ -13,10 +13,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ isFavoritesMode, onFavoritesToggle })
   const { user, isAuthenticated } = useAuth();
   const { favorites } = useFavorites();
 
-  // 只对普通用户显示收藏按钮
+  // 只对已登录的普通用户显示收藏按钮
   const isRegularUser = isAuthenticated && user?.role !== 'admin';
   const favoritesCount = favorites.size;
 
+  // 未登录时隐藏整个 Toolbar
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // 已登录但是管理员时，显示空的 Toolbar
   if (!isRegularUser) {
     return <div className={styles.toolbar} />;
   }
