@@ -39,8 +39,8 @@ function Calendar({
         ),
         range_end: "day-range-end",
         selected:
-          "bg-black text-white hover:bg-black/95 hover:text-white focus:bg-black focus:text-white rounded-full font-medium",
-        today: "bg-gray-100 text-black font-medium rounded-full ring-1 ring-gray-300",
+          "!bg-black !text-white hover:!bg-black/95 hover:!text-white focus:!bg-black focus:!text-white rounded-full font-medium !ring-0 !border-0",
+        today: "bg-gray-100 text-black font-medium rounded-full ring-1 ring-gray-300 border-0",
         outside:
           "day-outside text-gray-400 aria-selected:bg-black/5 aria-selected:text-gray-400",
         disabled: "text-gray-300 line-through cursor-not-allowed opacity-40",
