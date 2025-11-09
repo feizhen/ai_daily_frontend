@@ -14,11 +14,26 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
 
       .rightSection {
         display: flex;
         gap: 12px;
         align-items: center;
+      }
+
+      // 移动端布局：日期选择器和收藏按钮在小屏幕时显示在下方
+      @media (max-width: 768px) {
+        gap: 8px;
+        margin-bottom: 12px;
+
+        .rightSection {
+          width: 100%;
+          justify-content: flex-start;
+          order: 2;
+        }
       }
     }
   }
