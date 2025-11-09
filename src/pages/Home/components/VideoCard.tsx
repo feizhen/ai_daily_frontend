@@ -30,6 +30,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
 
   // 视频卡片渲染
   if (isVideo(item)) {
+    // Get AI summary based on language
+    const aiSummary = language === 'zh' && item.aiSummaryZh ? item.aiSummaryZh : item.aiSummary;
+
     return (
       <div
         className={styles.card}
@@ -49,7 +52,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ item, onVideoClick }) => {
           <div className={styles.content}>
             <h3>{item.title}</h3>
             <div className={styles.descriptionWrapper}>
-              <p className={styles.clamp}>{item.aiSummary || item.description}</p>
+              <p className={styles.clamp}>{aiSummary || item.description}</p>
             </div>
           </div>
           <div className={styles.meta}>

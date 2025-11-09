@@ -28,7 +28,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
     rollbackAdd,
     rollbackRemove
   } = useFavorites();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(false);
@@ -39,6 +39,9 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
   // Check if user is a regular user (not admin)
   const isRegularUser = isAuthenticated && user?.role !== 'admin';
   const favorited = isFavorited(video.id);
+
+  // Get AI summary based on language
+  const aiSummary = language === 'zh' && video.aiSummaryZh ? video.aiSummaryZh : video.aiSummary;
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -229,7 +232,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
             )}
 
             {/* AI 摘要（如果有） */}
-            {video.aiSummary && (
+            {aiSummary && (
               <div className={styles.contentCard}>
                 <div className={styles.sectionHeader}>
                   <h3 className={styles.sectionTitle}>{t('videoPlayer.aiSummary')}</h3>
@@ -237,7 +240,7 @@ const VideoPlayerDialog: React.FC<VideoPlayerDialogProps> = ({ video, open, onOp
                 </div>
                 <div className={styles.sectionContent}>
                   <p className={styles.expandedText}>
-                    {video.aiSummary}
+                    {aiSummary}
                   </p>
                 </div>
               </div>
