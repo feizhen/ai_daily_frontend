@@ -184,9 +184,9 @@ const translations: Record<Language, Record<string, string>> = {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
-    // Initialize from localStorage or default to English
+    // Initialize from localStorage or default to Chinese
     const savedLanguage = localStorage.getItem(LANGUAGE_KEY);
-    return (savedLanguage === 'zh' || savedLanguage === 'en') ? savedLanguage : 'en';
+    return (savedLanguage === 'zh' || savedLanguage === 'en') ? savedLanguage : 'zh';
   });
 
   useEffect(() => {
